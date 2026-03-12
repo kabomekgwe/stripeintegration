@@ -1,0 +1,112 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                    String          @id @default(cuid())
+  email                 String          @unique
+  password              String
+  name                  String?
+  stripeCustomerId      String?         @unique
+  defaultPaymentMethodId String?
+  createdAt             DateTime        @default(now())
+  updatedAt             DateTime        @updatedAt
+  
+  paymentMethods        PaymentMethod[]
+  payments              PaymentRecord[]
+  usageRecords          UsageRecord[]
+
+  @@map("users")
+}
+
+model PaymentMethod {
+  id            String    @id @default(cuid())
+  userId        String
+  stripePmId    String    @unique
+  type          String    // card, sepa_debit, us_bank_account
+  brand         String?   // visa, mastercard, amex
+  last4         String?
+  expMonth      Int?
+  expYear       Int?
+  isDefault     Boolean   @default(false)
+  isActive      Boolean   @default(true)
+  createdAt     DateTime  @default(now())
+  
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("payment_methods")
+}
+
+model PaymentRecord {
+  id                      String        @id @default(cuid())
+  userId                  String
+  stripePaymentIntentId   String        @unique
+  amount                  Int           // cents
+  currency                String        @default("usd")
+  status                  PaymentStatus @default(PENDING)
+  paymentMethodId         String?
+  description             String?
+  metadata                Json?
+  errorMessage            String?
+  createdAt               DateTime      @default(now())
+  updatedAt               DateTime      @updatedAt
+  
+  user                    User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([status])
+  @@index([createdAt])
+  @@map("payment_records")
+}
+
+model UsageRecord {
+  id            String    @id @default(cuid())
+  userId        String
+  period        String    // "2026-02" YYYY-MM format
+  amount        Int       // Total amount to bill (cents)
+  usageCount    Int       // Raw usage count
+  description   String?   // e.g., "API calls: 1200"
+  billed        Boolean   @default(false)
+  paymentId     String?   // Links to PaymentRecord after billing
+  createdAt     DateTime  @default(now())
+  
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@unique([userId, period])
+  @@index([userId])
+  @@index([billed])
+  @@index([period])
+  @@map("usage_records")
+}
+
+model WebhookEvent {
+  id            String    @id @default(cuid())
+  stripeEventId String    @unique
+  type          String
+  data          Json
+  processed     Boolean   @default(false)
+  processedAt   DateTime?
+  error         String?
+  createdAt     DateTime  @default(now())
+  
+  @@index([processed])
+  @@index([type])
+  @@map("webhook_events")
+}
+
+enum PaymentStatus {
+  PENDING
+  PROCESSING
+  SUCCEEDED
+  FAILED
+  CANCELED
+  REQUIRES_ACTION
+
+  @@map("payment_status")
+}
