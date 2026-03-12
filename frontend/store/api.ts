@@ -157,6 +157,26 @@ export const api = createApi({
       query: () => '/payments/refunds/all',
     }),
 
+    // Invoice endpoints
+    downloadPaymentInvoice: builder.query<Blob, string>({
+      query: (paymentId) => ({
+        url: `/invoices/payment/${paymentId}`,
+        responseHandler: (response) => response.blob(),
+      }),
+    }),
+    downloadUsageInvoice: builder.query<Blob, string>({
+      query: (usageId) => ({
+        url: `/invoices/usage/${usageId}`,
+        responseHandler: (response) => response.blob(),
+      }),
+    }),
+    viewPaymentInvoice: builder.query<Blob, string>({
+      query: (paymentId) => ({
+        url: `/invoices/payment/${paymentId}/view`,
+        responseHandler: (response) => response.blob(),
+      }),
+    }),
+
     // Usage endpoints
     recordUsage: builder.mutation<{ usage: UsageRecord }, CreateUsageRequest>({
       query: (data) => ({
@@ -212,6 +232,9 @@ export const {
   useCreateRefundMutation,
   useGetPaymentRefundsQuery,
   useGetAllRefundsQuery,
+  useLazyDownloadPaymentInvoiceQuery,
+  useLazyDownloadUsageInvoiceQuery,
+  useLazyViewPaymentInvoiceQuery,
   useRecordUsageMutation,
   useGetUsageQuery,
   useGetBillingPreviewQuery,

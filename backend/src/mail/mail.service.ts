@@ -362,4 +362,82 @@ export class MailService {
       </div>
     `;
   }
+
+  // ==================== INVOICE EMAILS ====================
+
+  async sendInvoiceWithAttachment(
+    email: string,
+    invoice: {
+      invoiceNumber: string;
+      amount: number;
+      currency: string;
+      pdfBuffer: Buffer;
+    },
+    userName: string,
+  ): Promise<void> {
+    const html = this.getInvoiceEmailTemplate({
+      userName,
+      invoiceNumber: invoice.invoiceNumber,
+      amount: (invoice.amount / 100).toFixed(2),
+      currency: invoice.currency.toUpperCase(),
+    });
+
+    await this.sendWithAttachment({
+      to: email,
+      subject: `Invoice ${invoice.invoiceNumber} - $${(invoice.amount / 100).toFixed(2)}`,
+      html,
+      text: `Your invoice ${invoice.invoiceNumber} for $${(invoice.amount / 100).toFixed(2)} is attached.`,
+      attachments: [
+        {
+          filename: `invoice-${invoice.invoiceNumber}.pdf`,
+          content: invoice.pdfBuffer,
+          contentType: 'application/pdf',
+        },
+      ],
+    });
+  }
+
+  private async sendWithAttachment(data: EmailData & { attachments?: any[] }): Promise<void> {
+    const mailOptions = {
+      from: `"${this.fromName}" <${this.fromEmail}>`,
+      to: data.to,
+      subject: data.subject,
+      html: data.html,
+      text: data.text,
+      attachments: data.attachments,
+    };
+
+    this.logger.log(`📧 Email with attachment to ${data.to}: ${data.subject}`);
+
+    if (!this.transporter) {
+      this.logger.debug('SMTP not configured - email logged only');
+      return;
+    }
+
+    try {
+      await this.transporter.sendMail(mailOptions);
+      this.logger.log(`✅ Email with attachment sent to ${data.to}`);
+    } catch (error) {
+      this.logger.error(`Failed to send email: ${error.message}`);
+      throw error;
+    }
+  }
+
+  private getInvoiceEmailTemplate(data: { userName: string; invoiceNumber: string; amount: string; currency: string }): string {
+    return `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+        <h2 style="color: #0066cc;">Invoice Attached</h2>
+        <p>Hi ${data.userName},</p>
+        <p>Please find your invoice attached to this email.</p>
+        <div style="background: #f8f9fa; padding: 20px; border-radius: 5px; margin: 20px 0;">
+          <p style="margin: 0;"><strong>Invoice Number:</strong> ${data.invoiceNumber}</p>
+          <p style="margin: 10px 0 0 0; font-size: 18px;">
+            <strong>Total: ${data.currency} $${data.amount}</strong>
+          </p>
+        </div>
+        <p>You can also view and download this invoice anytime from your <a href="#">Dashboard</a>.</p>
+        <p style="color: #666; font-size: 14px;">Thank you for your business!</p>
+      </div>
+    `;
+  }
 }

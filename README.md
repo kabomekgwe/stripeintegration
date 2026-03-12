@@ -9,6 +9,7 @@ A full-stack payment application with embedded Stripe integration, usage-based b
 - ⚡ Make instant payments without redirects
 - 📧 Email notifications (receipts, billing, password reset)
 - 💰 Full & partial refunds
+- 🧾 PDF invoice generation
 - 🍎 Apple Pay & Google Pay support
 - 📊 Usage-based monthly billing
 - 🐳 Docker Compose setup with PostgreSQL & Redis
@@ -112,6 +113,11 @@ docker-compose exec backend npx prisma studio
 ```
 
 ## API Endpoints
+
+### Invoices
+- `GET /invoices/payment/:id` - Download payment invoice (PDF)
+- `GET /invoices/payment/:id/view` - View invoice inline
+- `GET /invoices/usage/:id` - Download usage invoice (PDF)
 
 ### Authentication
 - `POST /auth/register` - Create account

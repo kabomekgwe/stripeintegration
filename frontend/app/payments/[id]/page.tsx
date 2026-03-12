@@ -3,7 +3,11 @@
 import { useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { Navbar } from '@/components/Navbar';
-import { useGetPaymentQuery, useCreateRefundMutation } from '@/store/api';
+import { 
+  useGetPaymentQuery, 
+  useCreateRefundMutation,
+  useLazyDownloadPaymentInvoiceQuery,
+} from '@/store/api';
 
 export default function PaymentDetailPage() {
   const params = useParams();
@@ -12,6 +16,7 @@ export default function PaymentDetailPage() {
   
   const { data, isLoading } = useGetPaymentQuery(paymentId);
   const [createRefund, { isLoading: isRefunding }] = useCreateRefundMutation();
+  const [downloadInvoice] = useLazyDownloadPaymentInvoiceQuery();
   
   const [refundAmount, setRefundAmount] = useState('');
   const [refundReason, setRefundReason] = useState('requested_by_customer');
@@ -19,6 +24,22 @@ export default function PaymentDetailPage() {
   const [refundSuccess, setRefundSuccess] = useState(false);
 
   const payment = data?.payment;
+
+  const handleDownloadInvoice = async () => {
+    try {
+      const blob = await downloadInvoice(paymentId).unwrap();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `invoice-${paymentId}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (err) {
+      console.error('Failed to download invoice:', err);
+    }
+  };
 
   const handleRefund = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -107,16 +128,25 @@ export default function PaymentDetailPage() {
             </div>
           </div>
 
-          {isRefundable && !showRefundForm && !refundSuccess && (
-            <div className="mt-6 border-t pt-6">
+          <div className="mt-6 flex gap-4 border-t pt-6">
+            {payment.status === 'SUCCEEDED' && (
+              <button
+                onClick={handleDownloadInvoice}
+                className="rounded-md bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"
+              >
+                📄 Download Invoice
+              </button>
+            )}
+            
+            {isRefundable && !showRefundForm && !refundSuccess && (
               <button
                 onClick={() => setShowRefundForm(true)}
                 className="rounded-md bg-red-600 px-4 py-2 text-white hover:bg-red-700"
               >
                 Request Refund
               </button>
-            </div>
-          )}
+            )}
+          </div>
 
           {refundSuccess && (
             <div className="mt-6 rounded-md bg-green-50 p-4 text-green-800">
