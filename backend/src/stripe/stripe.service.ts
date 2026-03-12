@@ -14,7 +14,8 @@ export class StripeService {
       throw new Error('STRIPE_SECRET_KEY is not defined');
     }
     this.stripe = new Stripe(secretKey, {
-      apiVersion: '2026-02-25.clover',
+      // Latest stable version supported by SDK
+      apiVersion: '2025-02-24.acacia',
     });
   }
 
@@ -159,6 +160,31 @@ export class StripeService {
     paymentIntentId: string,
   ): Promise<Stripe.PaymentIntent> {
     return this.stripe.paymentIntents.cancel(paymentIntentId);
+  }
+
+  // Refunds
+  async createRefund(params: {
+    paymentIntentId: string;
+    amount?: number;
+    reason?: 'duplicate' | 'fraudulent' | 'requested_by_customer';
+  }): Promise<Stripe.Refund> {
+    const refundParams: Stripe.RefundCreateParams = {
+      payment_intent: params.paymentIntentId,
+    };
+
+    if (params.amount) {
+      refundParams.amount = params.amount;
+    }
+
+    if (params.reason) {
+      refundParams.reason = params.reason;
+    }
+
+    return this.stripe.refunds.create(refundParams);
+  }
+
+  async retrieveRefund(refundId: string): Promise<Stripe.Refund> {
+    return this.stripe.refunds.retrieve(refundId);
   }
 
   // Webhooks

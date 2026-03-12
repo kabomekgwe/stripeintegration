@@ -10,7 +10,8 @@ import { RedisService } from '../redis/redis.service';
 import { MailService } from '../mail/mail.service';
 import { ConfigService } from '@nestjs/config';
 import { PaymentEntity } from './entities/payment.entity';
-import { PaymentStatus } from '@prisma/client';
+import { CreateRefundDto } from './dto/create-refund.dto';
+import { PaymentStatus, RefundStatus } from '@prisma/client';
 import { v4 as uuidv4 } from 'uuid';
 
 @Injectable()
@@ -233,6 +234,146 @@ export class PaymentsService {
 
     // Get updated status
     return this.confirmPayment(record.stripePaymentIntentId, userId);
+  }
+
+  // ==================== REFUNDS ====================
+
+  async createRefund(
+    paymentId: string,
+    userId: string,
+    refundDto: { amount?: number; reason?: string; description?: string },
+  ): Promise<any> {
+    // Get the payment record
+    const record = await this.prisma.paymentRecord.findFirst({
+      where: { id: paymentId, userId },
+      include: { user: true, refunds: true },
+    });
+
+    if (!record) {
+      throw new NotFoundException('Payment not found');
+    }
+
+    // Only allow refunds on succeeded payments
+    if (record.status !== 'SUCCEEDED') {
+      throw new BadRequestException(
+        'Cannot refund a payment that has not succeeded',
+      );
+    }
+
+    // Calculate refundable amount
+    const totalRefunded = record.refunds.reduce(
+      (sum, refund) => sum + refund.amount,
+      0,
+    );
+    const remainingAmount = record.amount - totalRefunded;
+
+    if (remainingAmount <= 0) {
+      throw new BadRequestException('Payment has already been fully refunded');
+    }
+
+    // Determine refund amount
+    let refundAmount = remainingAmount;
+    if (refundDto.amount) {
+      refundAmount = Math.round(refundDto.amount * 100); // Convert to cents
+      if (refundAmount > remainingAmount) {
+        throw new BadRequestException(
+          `Refund amount exceeds remaining refundable amount of $${(remainingAmount / 100).toFixed(2)}`,
+        );
+      }
+    }
+
+    // Create refund in Stripe
+    const stripeRefund = await this.stripeService.createRefund({
+      paymentIntentId: record.stripePaymentIntentId,
+      amount: refundAmount,
+      reason: refundDto.reason as any,
+    });
+
+    // Create refund record in database
+    const refund = await this.prisma.refund.create({
+      data: {
+        paymentId: record.id,
+        stripeRefundId: stripeRefund.id,
+        amount: refundAmount,
+        currency: record.currency,
+        status: (stripeRefund.status?.toUpperCase() || 'PENDING') as any,
+        reason: refundDto.reason,
+        description: refundDto.description,
+      },
+    });
+
+    // Send refund confirmation email
+    await this.mailService.sendRefundConfirmation(
+      record.user.email,
+      {
+        amount: refundAmount,
+        currency: record.currency,
+        originalAmount: record.amount,
+        paymentDescription: record.description,
+        refundId: stripeRefund.id,
+      },
+      record.user.name || record.user.email,
+    );
+
+    return {
+      refund: {
+        id: refund.id,
+        amount: refundAmount,
+        currency: record.currency,
+        status: stripeRefund.status,
+        createdAt: new Date(),
+      },
+      remainingRefundable: remainingAmount - refundAmount,
+    };
+  }
+
+  async getRefundsForPayment(
+    paymentId: string,
+    userId: string,
+  ): Promise<any[]> {
+    const record = await this.prisma.paymentRecord.findFirst({
+      where: { id: paymentId, userId },
+      include: { refunds: true },
+    });
+
+    if (!record) {
+      throw new NotFoundException('Payment not found');
+    }
+
+    return record.refunds.map((refund) => ({
+      id: refund.id,
+      amount: refund.amount,
+      currency: refund.currency,
+      status: refund.status,
+      reason: refund.reason,
+      description: refund.description,
+      createdAt: refund.createdAt,
+    }));
+  }
+
+  async getUserRefunds(userId: string): Promise<any[]> {
+    const refunds = await this.prisma.refund.findMany({
+      where: {
+        payment: {
+          userId,
+        },
+      },
+      include: {
+        payment: true,
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    return refunds.map((refund) => ({
+      id: refund.id,
+      amount: refund.amount,
+      currency: refund.currency,
+      status: refund.status,
+      reason: refund.reason,
+      description: refund.description,
+      paymentId: refund.paymentId,
+      createdAt: refund.createdAt,
+    }));
   }
 
   private toEntity(payment: any): PaymentEntity {

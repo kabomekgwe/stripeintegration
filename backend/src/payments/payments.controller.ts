@@ -8,12 +8,13 @@ import {
   Request,
   HttpCode,
   HttpStatus,
-  UseInterceptors,
+  Query,
 } from '@nestjs/common';
 import { PaymentsService } from './payments.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { PaymentRateLimitGuard } from './guards/rate-limit.guard';
 import { CreatePaymentDto } from './dto/create-payment.dto';
+import { CreateRefundDto } from './dto/create-refund.dto';
 
 @Controller('payments')
 @UseGuards(JwtAuthGuard)
@@ -64,5 +65,34 @@ export class PaymentsController {
   async retryPayment(@Request() req, @Param('id') id: string) {
     const payment = await this.paymentsService.retryPayment(id, req.user.id);
     return { payment };
+  }
+
+  // ==================== REFUNDS ====================
+
+  @Post(':id/refund')
+  @HttpCode(HttpStatus.OK)
+  async createRefund(
+    @Request() req,
+    @Param('id') id: string,
+    @Body() refundDto: CreateRefundDto,
+  ) {
+    const refund = await this.paymentsService.createRefund(
+      id,
+      req.user.id,
+      refundDto,
+    );
+    return { refund };
+  }
+
+  @Get(':id/refunds')
+  async getRefunds(@Request() req, @Param('id') id: string) {
+    const refunds = await this.paymentsService.getRefundsForPayment(id, req.user.id);
+    return { refunds };
+  }
+
+  @Get('refunds/all')
+  async getAllRefunds(@Request() req) {
+    const refunds = await this.paymentsService.getUserRefunds(req.user.id);
+    return { refunds };
   }
 }

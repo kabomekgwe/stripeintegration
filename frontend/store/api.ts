@@ -139,6 +139,23 @@ export const api = createApi({
       }),
       invalidatesTags: ['Payments'],
     }),
+    createRefund: builder.mutation<
+      { refund: any; remainingRefundable: number },
+      { paymentId: string; amount?: number; reason?: string; description?: string }
+    >({
+      query: ({ paymentId, ...data }) => ({
+        url: `/payments/${paymentId}/refund`,
+        method: 'POST',
+        body: data,
+      }),
+      invalidatesTags: ['Payments'],
+    }),
+    getPaymentRefunds: builder.query<{ refunds: any[] }, string>({
+      query: (paymentId) => `/payments/${paymentId}/refunds`,
+    }),
+    getAllRefunds: builder.query<{ refunds: any[] }, void>({
+      query: () => '/payments/refunds/all',
+    }),
 
     // Usage endpoints
     recordUsage: builder.mutation<{ usage: UsageRecord }, CreateUsageRequest>({
@@ -192,6 +209,9 @@ export const {
   useGetPaymentsQuery,
   useGetPaymentQuery,
   useRetryPaymentMutation,
+  useCreateRefundMutation,
+  useGetPaymentRefundsQuery,
+  useGetAllRefundsQuery,
   useRecordUsageMutation,
   useGetUsageQuery,
   useGetBillingPreviewQuery,

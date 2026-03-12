@@ -206,6 +206,53 @@ export class MailService {
     });
   }
 
+  // ==================== REFUND EMAILS ====================
+
+  async sendRefundConfirmation(
+    email: string,
+    refund: {
+      amount: number;
+      currency: string;
+      originalAmount: number;
+      paymentDescription?: string | null;
+      refundId: string;
+    },
+    userName: string,
+  ): Promise<void> {
+    const html = this.getRefundConfirmationTemplate({
+      userName,
+      amount: (refund.amount / 100).toFixed(2),
+      originalAmount: (refund.originalAmount / 100).toFixed(2),
+      currency: refund.currency.toUpperCase(),
+      paymentDescription: refund.paymentDescription || 'Payment',
+      refundId: refund.refundId,
+    });
+
+    await this.send({
+      to: email,
+      subject: `Refund Processed - $${(refund.amount / 100).toFixed(2)}`,
+      html,
+      text: `Refund of $${(refund.amount / 100).toFixed(2)} has been processed. Refund ID: ${refund.refundId}`,
+    });
+  }
+
+  private getRefundConfirmationTemplate(data: { userName: string; amount: string; originalAmount: string; currency: string; paymentDescription: string; refundId: string }): string {
+    return `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+        <h2 style="color: #28a745;">✓ Refund Processed</h2>
+        <p>Hi ${data.userName},</p>
+        <p>Your refund has been processed successfully.</p>
+        <table style="width: 100%; background: #f8f9fa; padding: 20px; border-radius: 5px; margin: 20px 0;">
+          <tr><td><strong>Refund Amount:</strong></td><td>${data.currency} $${data.amount}</td></tr>
+          <tr><td><strong>Original Payment:</strong></td><td>${data.currency} $${data.originalAmount}</td></tr>
+          <tr><td><strong>Description:</strong></td><td>${data.paymentDescription}</td></tr>
+          <tr><td><strong>Refund ID:</strong></td><td style="font-family: monospace; font-size: 12px;">${data.refundId}</td></tr>
+        </table>
+        <p style="color: #666; font-size: 14px;">Refunds typically take 5-10 business days to appear on your statement.</p>
+      </div>
+    `;
+  }
+
   // ==================== TEMPLATES ====================
 
   private getPasswordResetTemplate(data: { userName: string; resetUrl: string; expiresIn: string }): string {

@@ -58,11 +58,39 @@ model PaymentRecord {
   updatedAt               DateTime      @updatedAt
   
   user                    User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  refunds                 Refund[]
 
   @@index([userId])
   @@index([status])
   @@index([createdAt])
   @@map("payment_records")
+}
+
+model Refund {
+  id                String        @id @default(cuid())
+  paymentId         String
+  stripeRefundId    String        @unique
+  amount            Int           // cents, refunded amount
+  currency          String        @default("usd")
+  status            RefundStatus  @default(PENDING)
+  reason            String?       // duplicate, fraudulent, requested_by_customer
+  description       String?
+  createdAt         DateTime      @default(now())
+  
+  payment           PaymentRecord @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+
+  @@index([paymentId])
+  @@index([status])
+  @@map("refunds")
+}
+
+enum RefundStatus {
+  PENDING
+  SUCCEEDED
+  FAILED
+  CANCELED
+
+  @@map("refund_status")
 }
 
 model UsageRecord {
