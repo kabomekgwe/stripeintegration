@@ -14,7 +14,7 @@ export class StripeService {
       throw new Error('STRIPE_SECRET_KEY is not defined');
     }
     this.stripe = new Stripe(secretKey, {
-      apiVersion: '2025-02-24.acacia',
+      apiVersion: '2026-02-25.clover',
     });
   }
 
@@ -83,7 +83,11 @@ export class StripeService {
     return this.stripe.setupIntents.create(
       {
         customer: customerId,
-        payment_method_types: ['card', 'sepa_debit'],
+        // Use automatic_payment_methods instead of hardcoded types
+        // Enable desired methods in Stripe Dashboard: https://dashboard.stripe.com/settings/payments
+        automatic_payment_methods: {
+          enabled: true,
+        },
         metadata,
         usage: 'off_session',
       },
