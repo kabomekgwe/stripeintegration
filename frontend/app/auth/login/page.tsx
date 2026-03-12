@@ -75,6 +75,12 @@ export default function LoginPage() {
         >
           {isLoading ? 'Signing in...' : 'Sign in'}
         </button>
+
+        <div className="flex items-center justify-between text-sm">
+          <Link href="/auth/forgot-password" className="text-blue-600 hover:text-blue-500">
+            Forgot password?
+          </Link>
+        </div>
       </form>
 
       <p className="mt-4 text-center text-sm text-gray-600">

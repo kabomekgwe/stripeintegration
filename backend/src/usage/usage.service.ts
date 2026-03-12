@@ -1,8 +1,10 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../database/prisma.service';
 import { StripeService } from '../stripe/stripe.service';
 import { PaymentMethodsService } from '../payment-methods/payment-methods.service';
 import { RedisService } from '../redis/redis.service';
+import { MailService } from '../mail/mail.service';
 import { UsageEntity } from './entities/usage.entity';
 import { PaymentStatus } from '@prisma/client';
 import { v4 as uuidv4 } from 'uuid';
@@ -16,6 +18,8 @@ export class UsageService {
     private readonly stripeService: StripeService,
     private readonly paymentMethodsService: PaymentMethodsService,
     private readonly redisService: RedisService,
+    private readonly mailService: MailService,
+    private readonly configService: ConfigService,
   ) {}
 
   async recordUsage(params: {
@@ -95,7 +99,7 @@ export class UsageService {
   }): Promise<{ success: boolean; paymentId?: string; error?: string }> {
     const period = params.period || this.getPreviousPeriod();
 
-    // Get unbilled usage
+    // Get unbilled usage with user
     const usage = await this.prisma.usageRecord.findUnique({
       where: {
         userId_period: {
@@ -103,6 +107,7 @@ export class UsageService {
           period,
         },
       },
+      include: { user: true },
     });
 
     if (!usage || usage.billed || usage.amount === 0) {
@@ -171,6 +176,31 @@ export class UsageService {
         `Billed user ${params.userId} $${usage.amount / 100} for ${period}`,
       );
 
+      // Send billing email
+      const frontendUrl = this.configService.get('FRONTEND_URL') || 'http://localhost:3000';
+      
+      if (stripePi.status === 'succeeded') {
+        await this.mailService.sendBillingSummary(
+          usage.user.email,
+          {
+            period,
+            totalAmount: usage.amount,
+            usageCount: usage.usageCount,
+          },
+          usage.user.name || usage.user.email,
+        );
+      } else {
+        await this.mailService.sendBillingFailed(
+          usage.user.email,
+          {
+            period,
+            totalAmount: usage.amount,
+          },
+          usage.user.name || usage.user.email,
+          `${frontendUrl}/payment-methods`,
+        );
+      }
+
       return {
         success: stripePi.status === 'succeeded',
         paymentId: payment.id,
@@ -193,6 +223,18 @@ export class UsageService {
           errorMessage: error.message,
         },
       });
+
+      // Send failure email
+      const frontendUrl = this.configService.get('FRONTEND_URL') || 'http://localhost:3000';
+      await this.mailService.sendBillingFailed(
+        usage.user.email,
+        {
+          period,
+          totalAmount: usage.amount,
+        },
+        usage.user.name || usage.user.email,
+        `${frontendUrl}/payment-methods`,
+      );
 
       return {
         success: false,

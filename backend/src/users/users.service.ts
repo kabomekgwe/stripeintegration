@@ -90,6 +90,13 @@ export class UsersService {
     return bcrypt.compare(password, dbUser.password);
   }
 
+  async updatePassword(userId: string, hashedPassword: string): Promise<void> {
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { password: hashedPassword },
+    });
+  }
+
   private toEntity(user: any): UserEntity {
     return {
       id: user.id,

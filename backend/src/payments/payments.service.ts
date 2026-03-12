@@ -7,6 +7,8 @@ import { PrismaService } from '../database/prisma.service';
 import { StripeService } from '../stripe/stripe.service';
 import { PaymentMethodsService } from '../payment-methods/payment-methods.service';
 import { RedisService } from '../redis/redis.service';
+import { MailService } from '../mail/mail.service';
+import { ConfigService } from '@nestjs/config';
 import { PaymentEntity } from './entities/payment.entity';
 import { PaymentStatus } from '@prisma/client';
 import { v4 as uuidv4 } from 'uuid';
@@ -18,6 +20,8 @@ export class PaymentsService {
     private readonly stripeService: StripeService,
     private readonly paymentMethodsService: PaymentMethodsService,
     private readonly redisService: RedisService,
+    private readonly mailService: MailService,
+    private readonly configService: ConfigService,
   ) {}
 
   async createPaymentIntent(params: {
@@ -105,7 +109,7 @@ export class PaymentsService {
     await this.redisService.setIdempotency(idempotencyKey, result);
 
     return result;
-  }
+}
 
   async confirmPayment(
     paymentIntentId: string,
@@ -114,6 +118,7 @@ export class PaymentsService {
     // Verify ownership
     const record = await this.prisma.paymentRecord.findFirst({
       where: { stripePaymentIntentId: paymentIntentId, userId },
+      include: { user: true },
     });
 
     if (!record) {
@@ -133,6 +138,34 @@ export class PaymentsService {
         errorMessage: stripePi.last_payment_error?.message,
       },
     });
+
+    // Send email notification based on status
+    const frontendUrl = this.configService.get('FRONTEND_URL') || 'http://localhost:3000';
+    
+    if (stripePi.status === 'succeeded') {
+      await this.mailService.sendPaymentReceipt(
+        record.user.email,
+        {
+          amount: record.amount,
+          currency: record.currency,
+          description: record.description,
+          createdAt: new Date(),
+          stripePaymentIntentId: record.stripePaymentIntentId,
+        },
+        record.user.name || record.user.email,
+      );
+    } else if (stripePi.status === 'requires_payment_method' || stripePi.status === 'canceled') {
+      await this.mailService.sendPaymentFailed(
+        record.user.email,
+        {
+          amount: record.amount,
+          currency: record.currency,
+          errorMessage: stripePi.last_payment_error?.message,
+        },
+        record.user.name || record.user.email,
+        `${frontendUrl}/payments/make`,
+      );
+    }
 
     return this.toEntity(updated);
   }

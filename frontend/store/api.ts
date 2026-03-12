@@ -61,6 +61,20 @@ export const api = createApi({
       query: () => '/auth/me',
       providesTags: ['User'],
     }),
+    requestPasswordReset: builder.mutation<{ message: string }, { email: string }>({
+      query: (data) => ({
+        url: '/auth/forgot-password',
+        method: 'POST',
+        body: data,
+      }),
+    }),
+    resetPassword: builder.mutation<{ message: string }, { token: string; newPassword: string }>({
+      query: (data) => ({
+        url: '/auth/reset-password',
+        method: 'POST',
+        body: data,
+      }),
+    }),
 
     // Payment Methods endpoints
     getPaymentMethods: builder.query<{ paymentMethods: PaymentMethod[] }, void>({
@@ -166,6 +180,8 @@ export const {
   useRegisterMutation,
   useLogoutMutation,
   useGetMeQuery,
+  useRequestPasswordResetMutation,
+  useResetPasswordMutation,
   useGetPaymentMethodsQuery,
   useCreateSetupIntentMutation,
   useSavePaymentMethodMutation,
