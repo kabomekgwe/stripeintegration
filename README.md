@@ -7,6 +7,9 @@ A full-stack payment application with embedded Stripe integration, usage-based b
 - 🔐 JWT Authentication
 - 💳 Save & manage payment methods (cards, bank accounts)
 - ⚡ Make instant payments without redirects
+- 📧 Email notifications (receipts, billing, password reset)
+- 💰 Full & partial refunds
+- 🍎 Apple Pay & Google Pay support
 - 📊 Usage-based monthly billing
 - 🐳 Docker Compose setup with PostgreSQL & Redis
 - 🔄 Webhook handling with idempotency
@@ -128,6 +131,11 @@ docker-compose exec backend npx prisma studio
 - `POST /payments/:id/confirm` - Confirm payment
 - `GET /payments` - List payments
 - `POST /payments/:id/retry` - Retry failed payment
+- `POST /payments/:id/refund` - Create refund (full or partial)
+- `GET /payments/:id/refunds` - List refunds for payment
+
+### Refunds
+- `GET /payments/refunds/all` - List all user refunds
 
 ### Usage & Billing
 - `POST /usage` - Record usage
@@ -166,6 +174,28 @@ docker-compose exec backend npx prisma studio
 | 4000 0084 0000 1280 | Insufficient funds |
 | 4000 0000 0000 9995 | Declined |
 
-## License
+## Apple Pay & Google Pay
 
-MIT
+To enable Apple Pay and Google Pay:
+
+### 1. Enable in Stripe Dashboard
+1. Go to [Stripe Dashboard Settings](https://dashboard.stripe.com/settings/payments)
+2. Enable **Apple Pay** and **Google Pay** under "Payment methods"
+3. For Apple Pay: Complete domain verification in Production
+
+### 2. Domain Verification (Production Only)
+Apple Pay requires domain verification. Place the verification file at:
+```
+https://yourdomain.com/.well-known/apple-developer-merchantid-domain-association
+```
+
+The file can be downloaded from your Stripe Dashboard after enabling Apple Pay.
+
+### 3. Testing
+- **Apple Pay**: Test on macOS Safari or iOS Safari (requires Touch ID/Face ID)
+- **Google Pay**: Test on Chrome with a saved payment method
+
+Note: Digital wallets appear automatically based on:
+- Device/browser capability
+- Customer's saved payment methods
+- Your Stripe account's enabled payment methods

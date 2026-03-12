@@ -5,6 +5,7 @@ import {
   PaymentElement,
   useStripe,
   useElements,
+  ExpressCheckoutElement,
 } from '@stripe/react-stripe-js';
 import { useSavePaymentMethodMutation } from '@/store/api';
 
@@ -60,6 +61,40 @@ export function SetupIntentForm({
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
+      {/* Express Checkout: Apple Pay, Google Pay, Link */}
+      <ExpressCheckoutElement
+        onConfirm={async () => {
+          if (!stripe || !elements) return;
+
+          setIsLoading(true);
+          const { error: submitError } = await stripe.confirmSetup({
+            elements,
+            confirmParams: {
+              return_url: window.location.href,
+            },
+            redirect: 'if_required',
+          });
+
+          if (submitError) {
+            setError(submitError.message || 'An error occurred');
+            setIsLoading(false);
+            return;
+          }
+
+          onSuccess();
+          setIsLoading(false);
+        }}
+      />
+
+      <div className="relative">
+        <div className="absolute inset-0 flex items-center">
+          <div className="w-full border-t border-gray-300" />
+        </div>
+        <div className="relative flex justify-center text-sm">
+          <span className="bg-white px-2 text-gray-500">Or add card manually</span>
+        </div>
+      </div>
+
       <PaymentElement />
 
       {error && (
