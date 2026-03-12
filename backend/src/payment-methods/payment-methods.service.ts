@@ -19,6 +19,10 @@ export class PaymentMethodsService {
       { userId },
     );
 
+    if (!setupIntent.client_secret) {
+      throw new Error('Failed to create setup intent');
+    }
+
     return { clientSecret: setupIntent.client_secret };
   }
 

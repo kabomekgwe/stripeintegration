@@ -4,6 +4,7 @@ import { StripeService } from '../stripe/stripe.service';
 import { PaymentMethodsService } from '../payment-methods/payment-methods.service';
 import { RedisService } from '../redis/redis.service';
 import { UsageEntity } from './entities/usage.entity';
+import { PaymentStatus } from '@prisma/client';
 import { v4 as uuidv4 } from 'uuid';
 
 @Injectable()
@@ -150,7 +151,7 @@ export class UsageService {
           stripePaymentIntentId: stripePi.id,
           amount: usage.amount,
           currency: 'usd',
-          status: stripePi.status.toUpperCase(),
+          status: stripePi.status.toUpperCase() as PaymentStatus,
           paymentMethodId: defaultPm.id,
           description: `Monthly usage billing for ${period}`,
           metadata: stripePi.metadata,

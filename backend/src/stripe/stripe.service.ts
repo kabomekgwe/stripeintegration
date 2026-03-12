@@ -10,6 +10,9 @@ export class StripeService {
 
   constructor(private readonly configService: ConfigService) {
     const secretKey = this.configService.get<string>('STRIPE_SECRET_KEY');
+    if (!secretKey) {
+      throw new Error('STRIPE_SECRET_KEY is not defined');
+    }
     this.stripe = new Stripe(secretKey, {
       apiVersion: '2025-02-24.acacia',
     });

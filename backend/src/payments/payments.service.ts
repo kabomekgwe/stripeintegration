@@ -8,6 +8,7 @@ import { StripeService } from '../stripe/stripe.service';
 import { PaymentMethodsService } from '../payment-methods/payment-methods.service';
 import { RedisService } from '../redis/redis.service';
 import { PaymentEntity } from './entities/payment.entity';
+import { PaymentStatus } from '@prisma/client';
 import { v4 as uuidv4 } from 'uuid';
 
 @Injectable()
@@ -84,12 +85,16 @@ export class PaymentsService {
         stripePaymentIntentId: stripePi.id,
         amount: params.amount,
         currency: params.currency,
-        status: stripePi.status.toUpperCase(),
+        status: stripePi.status.toUpperCase() as any,
         paymentMethodId: params.paymentMethodId,
         description: params.description,
         metadata: stripePi.metadata,
       },
     });
+
+    if (!stripePi.client_secret) {
+      throw new Error('Failed to create payment intent');
+    }
 
     const result = {
       clientSecret: stripePi.client_secret,
@@ -124,10 +129,8 @@ export class PaymentsService {
     const updated = await this.prisma.paymentRecord.update({
       where: { id: record.id },
       data: {
-        status: stripePi.status.toUpperCase(),
-        errorMessage:
-          stripePi.last_payment_error?.message ||
-          stripePi.last_setup_error?.message,
+        status: stripePi.status.toUpperCase() as PaymentStatus,
+        errorMessage: stripePi.last_payment_error?.message,
       },
     });
 

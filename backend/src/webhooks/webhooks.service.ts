@@ -18,6 +18,10 @@ export class WebhooksService {
 
   async processWebhook(payload: string | Buffer, signature: string): Promise<void> {
     const webhookSecret = this.configService.get<string>('STRIPE_WEBHOOK_SECRET');
+    if (!webhookSecret) {
+      this.logger.error('STRIPE_WEBHOOK_SECRET is not defined');
+      throw new Error('STRIPE_WEBHOOK_SECRET is not defined');
+    }
 
     let event: Stripe.Event;
     try {
