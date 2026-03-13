@@ -34,7 +34,7 @@ export const api = createApi({
       return headers;
     },
   }),
-  tagTypes: ['User', 'PaymentMethods', 'Payments', 'Usage', 'BillingPreview'],
+  tagTypes: ['User', 'PaymentMethods', 'Payments', 'Usage', 'BillingPreview', 'AdminDashboard'],
   endpoints: (builder) => ({
     // Auth endpoints
     login: builder.mutation<AuthResponse, { email: string; password: string }>({
@@ -208,6 +208,48 @@ export const api = createApi({
       }),
       invalidatesTags: ['Usage', 'Payments', 'BillingPreview'],
     }),
+
+    // Admin endpoints
+    getAdminDashboard: builder.query<{
+      metrics: any;
+      recentTransactions: any[];
+      paymentMethods: any[];
+    }, void>({
+      query: () => '/admin/dashboard',
+      providesTags: ['AdminDashboard'],
+    }),
+    getAdminMetrics: builder.query<any, void>({
+      query: () => '/admin/metrics',
+      providesTags: ['AdminDashboard'],
+    }),
+    getAdminRevenue: builder.query<any, { period?: 'day' | 'week' | 'month'; days?: number }>({
+      query: ({ period = 'day', days = 30 }) => `/admin/revenue?period=${period}&days=${days}`,
+      providesTags: ['AdminDashboard'],
+    }),
+    getAdminTransactions: builder.query<{ transactions: any[] }, { limit?: number }>({
+      query: ({ limit = 20 }) => `/admin/transactions?limit=${limit}`,
+    }),
+    getAdminUsers: builder.query<{
+      users: any[];
+      total: number;
+    }, { page?: number; limit?: number; search?: string }>({
+      query: ({ page = 1, limit = 20, search }) => {
+        const params = new URLSearchParams();
+        params.append('page', page.toString());
+        params.append('limit', limit.toString());
+        if (search) params.append('search', search);
+        return `/admin/users?${params.toString()}`;
+      },
+    }),
+    getAdminUserDetails: builder.query<any, string>({
+      query: (userId) => `/admin/users/${userId}`,
+    }),
+    suspendUser: builder.mutation<{ message: string; userId: string }, string>({
+      query: (userId) => ({
+        url: `/admin/users/${userId}/suspend`,
+        method: 'POST',
+      }),
+    }),
   }),
 });
 
@@ -240,4 +282,12 @@ export const {
   useGetBillingPreviewQuery,
   useGenerateBillingMutation,
   useRunMonthlyBillingMutation,
+  // Admin hooks
+  useGetAdminDashboardQuery,
+  useGetAdminMetricsQuery,
+  useGetAdminRevenueQuery,
+  useGetAdminTransactionsQuery,
+  useGetAdminUsersQuery,
+  useGetAdminUserDetailsQuery,
+  useSuspendUserMutation,
 } = api;

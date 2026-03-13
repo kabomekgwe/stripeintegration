@@ -120,6 +120,16 @@ docker-compose exec backend npx prisma studio
 - `POST /tax/verify-id` - Verify VAT/GST tax ID
 - `GET /tax/settings` - Get tax settings
 
+### Admin (Requires ADMIN role)
+- `GET /admin/dashboard` - Get dashboard summary with metrics
+- `GET /admin/metrics` - Get dashboard metrics
+- `GET /admin/revenue?period=&days=` - Get revenue by period (day/week/month)
+- `GET /admin/transactions?limit=` - Get recent transactions
+- `GET /admin/payment-methods` - Get payment method distribution
+- `GET /admin/users?page=&limit=&search=` - List users with search
+- `GET /admin/users/:id` - Get user details
+- `POST /admin/users/:id/suspend` - Suspend user
+
 ### Invoices
 - `GET /invoices/payment/:id` - Download payment invoice (PDF)
 - `GET /invoices/payment/:id/view` - View invoice inline
