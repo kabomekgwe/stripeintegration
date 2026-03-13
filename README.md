@@ -11,10 +11,12 @@ A full-stack payment application with embedded Stripe integration, usage-based b
 - 💰 Full & partial refunds
 - 🧾 PDF invoice generation
 - 🍎 Apple Pay & Google Pay support
+- 📅 Subscription tiers with recurring billing
 - 📊 Usage-based monthly billing
 - 🐳 Docker Compose setup with PostgreSQL & Redis
 - 🔄 Webhook handling with idempotency
 - ⏱️ Rate limiting on payment endpoints
+- 📦 Tax calculation (US states & EU VAT)
 
 ## Quick Start
 
