@@ -136,7 +136,27 @@ export class InvoiceService {
       ?.filter((r: any) => r.status === 'SUCCEEDED')
       .reduce((sum: number, r: any) => sum + r.amount, 0) || 0;
 
-    const netAmount = payment.amount - totalRefunded;
+    const netAmount = (payment.amount + (payment.taxAmount || 0)) - totalRefunded;
+    const taxAmount = payment.taxAmount || 0;
+    const taxRate = payment.taxRate || 0;
+
+    const items = [
+      {
+        description: payment.description || 'Payment',
+        quantity: 1,
+        unitPrice: payment.amount / 100,
+        amount: payment.amount / 100,
+      },
+    ];
+
+    if (taxAmount > 0) {
+      items.push({
+        description: payment.taxDisplayName || 'Tax',
+        quantity: 1,
+        unitPrice: taxAmount / 100,
+        amount: taxAmount / 100,
+      });
+    }
 
     return {
       invoiceNumber: `INV-${payment.id.slice(-8).toUpperCase()}`,
@@ -151,17 +171,10 @@ export class InvoiceService {
       companyEmail,
       customerName: payment.user.name || payment.user.email,
       customerEmail: payment.user.email,
-      items: [
-        {
-          description: payment.description || 'Payment',
-          quantity: 1,
-          unitPrice: payment.amount / 100,
-          amount: payment.amount / 100,
-        },
-      ],
+      items,
       subtotal: payment.amount / 100,
-      taxAmount: 0,
-      taxRate: 0,
+      taxAmount: taxAmount / 100,
+      taxRate,
       total: netAmount / 100,
       currency: payment.currency.toUpperCase(),
       paymentStatus: payment.status,

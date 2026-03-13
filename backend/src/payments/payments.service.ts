@@ -8,6 +8,7 @@ import { StripeService } from '../stripe/stripe.service';
 import { PaymentMethodsService } from '../payment-methods/payment-methods.service';
 import { RedisService } from '../redis/redis.service';
 import { MailService } from '../mail/mail.service';
+import { TaxService } from '../tax/tax.service';
 import { ConfigService } from '@nestjs/config';
 import { PaymentEntity } from './entities/payment.entity';
 import { CreateRefundDto } from './dto/create-refund.dto';
@@ -23,6 +24,7 @@ export class PaymentsService {
     private readonly redisService: RedisService,
     private readonly mailService: MailService,
     private readonly configService: ConfigService,
+    private readonly taxService: TaxService,
   ) {}
 
   async createPaymentIntent(params: {
@@ -32,7 +34,16 @@ export class PaymentsService {
     currency: string;
     paymentMethodId?: string;
     description?: string;
-  }): Promise<{ clientSecret: string; paymentIntentId: string }> {
+    customerDetails?: {
+      address: {
+        line1: string;
+        city?: string;
+        state?: string;
+        postal_code: string;
+        country: string;
+      };
+    };
+  }): Promise<{ clientSecret: string; paymentIntentId: string; taxAmount: number }> {
     // Determine payment method
     let paymentMethodStripeId: string | undefined;
 
@@ -69,9 +80,33 @@ export class PaymentsService {
       return cached.response;
     }
 
+    // Calculate tax if tax is enabled
+    let taxAmount = 0;
+    let taxRate = 0;
+    let taxDisplayName: string | undefined;
+
+    if (this.taxService.isTaxEnabled()) {
+      try {
+        const taxResult = await this.taxService.calculateTax({
+          amount: params.amount,
+          currency: params.currency,
+          customerDetails: params.customerDetails,
+        });
+        taxAmount = taxResult.taxAmount;
+        taxRate = taxResult.taxRate;
+        taxDisplayName = taxResult.taxDisplayName;
+      } catch (error) {
+        if (this.configService.get('NODE_ENV') === 'development') {
+          console.log('Tax calculation failed:', error);
+        }
+      }
+    }
+
+    const totalAmount = params.amount + taxAmount;
+
     // Create payment intent in Stripe
     const stripePi = await this.stripeService.createPaymentIntent({
-      amount: params.amount,
+      amount: totalAmount,
       currency: params.currency,
       customerId: params.stripeCustomerId,
       paymentMethodId: paymentMethodStripeId,
@@ -79,6 +114,8 @@ export class PaymentsService {
       metadata: {
         userId: params.userId,
         internalPaymentId: idempotencyKey,
+        taxAmount: taxAmount.toString(),
+        taxRate: taxRate.toString(),
       },
       idempotencyKey,
     });
@@ -88,7 +125,10 @@ export class PaymentsService {
       data: {
         userId: params.userId,
         stripePaymentIntentId: stripePi.id,
-        amount: params.amount,
+        amount: params.amount, // base amount without tax
+        taxAmount: taxAmount || null,
+        taxRate: taxRate || null,
+        taxDisplayName,
         currency: params.currency,
         status: stripePi.status.toUpperCase() as any,
         paymentMethodId: params.paymentMethodId,
@@ -104,6 +144,7 @@ export class PaymentsService {
     const result = {
       clientSecret: stripePi.client_secret,
       paymentIntentId: stripePi.id,
+      taxAmount,
     };
 
     // Cache for idempotency

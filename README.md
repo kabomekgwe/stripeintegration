@@ -114,6 +114,12 @@ docker-compose exec backend npx prisma studio
 
 ## API Endpoints
 
+### Tax Calculation
+- `POST /tax/calculate` - Calculate tax for amount with customer address
+- `POST /tax/preview` - Preview tax for multiple items
+- `POST /tax/verify-id` - Verify VAT/GST tax ID
+- `GET /tax/settings` - Get tax settings
+
 ### Invoices
 - `GET /invoices/payment/:id` - Download payment invoice (PDF)
 - `GET /invoices/payment/:id/view` - View invoice inline

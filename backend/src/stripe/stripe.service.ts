@@ -211,4 +211,8 @@ export class StripeService {
       frozen_time: frozenTime,
     });
   }
+
+  isStripeTaxEnabled(): boolean {
+    return this.configService.get<boolean>('STRIPE_TAX_ENABLED') || false;
+  }
 }

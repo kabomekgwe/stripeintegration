@@ -12,6 +12,7 @@ import { PaymentsModule } from './payments/payments.module';
 import { UsageModule } from './usage/usage.module';
 import { WebhooksModule } from './webhooks/webhooks.module';
 import { InvoiceModule } from './invoices/invoice.module';
+import { TaxModule } from './tax/tax.module';
 
 @Module({
   imports: [
@@ -31,6 +32,7 @@ import { InvoiceModule } from './invoices/invoice.module';
     UsageModule,
     WebhooksModule,
     InvoiceModule,
+    TaxModule,
   ],
 })
 export class AppModule {}

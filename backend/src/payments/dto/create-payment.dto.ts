@@ -1,4 +1,34 @@
-import { IsInt, IsString, IsOptional, Min, IsIn } from 'class-validator';
+import { IsInt, IsString, IsOptional, Min, IsIn, ValidateNested } from 'class-validator';
+import { Type } from 'class-transformer';
+
+class AddressDto {
+  @IsString()
+  line1: string;
+
+  @IsOptional()
+  @IsString()
+  city?: string;
+
+  @IsOptional()
+  @IsString()
+  state?: string;
+
+  @IsString()
+  postal_code: string;
+
+  @IsString()
+  country: string;
+}
+
+class CustomerDetailsDto {
+  @ValidateNested()
+  @Type(() => AddressDto)
+  address: AddressDto;
+
+  @IsOptional()
+  @IsString()
+  name?: string;
+}
 
 export class CreatePaymentDto {
   @IsInt()
@@ -16,4 +46,9 @@ export class CreatePaymentDto {
   @IsOptional()
   @IsString()
   description?: string;
+
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => CustomerDetailsDto)
+  customerDetails?: CustomerDetailsDto;
 }

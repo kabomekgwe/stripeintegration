@@ -34,6 +34,15 @@ export class PaymentsController {
       currency: createPaymentDto.currency,
       paymentMethodId: createPaymentDto.paymentMethodId,
       description: createPaymentDto.description,
+      customerDetails: createPaymentDto.customerDetails && {
+        address: {
+          line1: createPaymentDto.customerDetails.address.line1,
+          city: createPaymentDto.customerDetails.address.city,
+          state: createPaymentDto.customerDetails.address.state,
+          postal_code: createPaymentDto.customerDetails.address.postal_code,
+          country: createPaymentDto.customerDetails.address.country,
+        },
+      },
     });
 
     return result;
