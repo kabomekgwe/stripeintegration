@@ -26,7 +26,7 @@ export function Navbar() {
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="flex h-16 justify-between">
           <div className="flex items-center gap-8">
-            <Link href="/dashboard" className="text-xl font-bold">
+            <Link href="/" className="text-xl font-bold">
               Stripe Payments
             </Link>
             <div className="hidden gap-4 md:flex">
@@ -35,6 +35,12 @@ export function Navbar() {
                 className="text-gray-600 hover:text-gray-900"
               >
                 Dashboard
+              </Link>
+              <Link
+                href="/subscriptions"
+                className="text-gray-600 hover:text-gray-900"
+              >
+                Subscriptions
               </Link>
               <Link
                 href="/payment-methods"
@@ -51,6 +57,14 @@ export function Navbar() {
               <Link href="/usage" className="text-gray-600 hover:text-gray-900">
                 Usage
               </Link>
+              {user?.role === 'ADMIN' && (
+                <Link
+                  href="/admin"
+                  className="text-gray-600 hover:text-gray-900"
+                >
+                  Admin
+                </Link>
+              )}
             </div>
           </div>
 
