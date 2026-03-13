@@ -34,7 +34,7 @@ export const api = createApi({
       return headers;
     },
   }),
-  tagTypes: ['User', 'PaymentMethods', 'Payments', 'Usage', 'BillingPreview', 'AdminDashboard'],
+  tagTypes: ['User', 'PaymentMethods', 'Payments', 'Usage', 'BillingPreview', 'AdminDashboard', 'Subscriptions'],
   endpoints: (builder) => ({
     // Auth endpoints
     login: builder.mutation<AuthResponse, { email: string; password: string }>({
@@ -250,6 +250,45 @@ export const api = createApi({
         method: 'POST',
       }),
     }),
+
+    // Subscription endpoints
+    getSubscriptionPlans: builder.query<{
+      plans: any[];
+    }, void>({
+      query: () => '/subscriptions/plans',
+      providesTags: ['Subscriptions'],
+    }),
+    getSubscription: builder.query<{
+      current: any | null;
+      all: any[];
+    }, void>({
+      query: () => '/subscriptions',
+      providesTags: ['Subscriptions'],
+    }),
+    createSubscription: builder.mutation<{ clientSecret: string; subscriptionId: string }, { priceId: string; paymentMethodId?: string }>({
+      query: (data) => ({
+        url: '/subscriptions',
+        method: 'POST',
+        body: data,
+      }),
+      invalidatesTags: ['Subscriptions'],
+    }),
+    updateSubscription: builder.mutation<{ message: string }, { id: string; priceId?: string; cancelAtPeriodEnd?: boolean }>({
+      query: ({ id, ...data }) => ({
+        url: `/subscriptions/${id}`,
+        method: 'PATCH',
+        body: data,
+      }),
+      invalidatesTags: ['Subscriptions'],
+    }),
+    cancelSubscription: builder.mutation<{ message: string }, { id: string; cancelMode?: 'immediately' | 'period_end' }>({
+      query: ({ id, ...data }) => ({
+        url: `/subscriptions/${id}`,
+        method: 'DELETE',
+        body: data,
+      }),
+      invalidatesTags: ['Subscriptions'],
+    }),
   }),
 });
 
@@ -290,4 +329,10 @@ export const {
   useGetAdminUsersQuery,
   useGetAdminUserDetailsQuery,
   useSuspendUserMutation,
+  // Subscription hooks
+  useGetSubscriptionPlansQuery,
+  useGetSubscriptionQuery,
+  useCreateSubscriptionMutation,
+  useUpdateSubscriptionMutation,
+  useCancelSubscriptionMutation,
 } = api;

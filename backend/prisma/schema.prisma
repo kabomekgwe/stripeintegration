@@ -26,6 +26,7 @@ model User {
   paymentMethods        PaymentMethod[]
   payments              PaymentRecord[]
   usageRecords          UsageRecord[]
+  subscriptions         Subscription[]
 
   @@map("users")
 }
@@ -148,4 +149,89 @@ enum PaymentStatus {
   REQUIRES_ACTION
 
   @@map("payment_status")
+}
+
+// ==================== SUBSCRIPTIONS ====================
+
+enum PlanInterval {
+  DAY
+  WEEK
+  MONTH
+  YEAR
+
+  @@map("plan_interval")
+}
+
+enum SubscriptionStatus {
+  INCOMPLETE
+  INCOMPLETE_EXPIRED
+  TRIALING
+  ACTIVE
+  PAST_DUE
+  CANCELED
+  UNPAID
+  PAUSED
+
+  @@map("subscription_status")
+}
+
+model Plan {
+  id              String       @id @default(cuid())
+  name            String
+  description     String?
+  stripeProductId String       @unique
+  isActive        Boolean      @default(true)
+  features        String[]     // Array of feature strings
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  prices          Price[]
+  subscriptions   Subscription[]
+
+  @@map("plans")
+}
+
+model Price {
+  id              String       @id @default(cuid())
+  planId          String
+  stripePriceId   String       @unique
+  amount          Int          // in cents
+  currency        String       @default("usd")
+  interval        PlanInterval @default(MONTH)
+  intervalCount   Int          @default(1)     // e.g., every 3 months
+  isActive        Boolean      @default(true)
+  createdAt       DateTime     @default(now())
+
+  plan            Plan         @relation(fields: [planId], references: [id], onDelete: Cascade)
+  subscriptions   Subscription[]
+
+  @@index([planId, isActive])
+  @@map("prices")
+}
+
+model Subscription {
+  id                    String             @id @default(cuid())
+  userId                String
+  stripeSubscriptionId  String             @unique
+  stripeCustomerId      String
+  planId                String
+  priceId               String
+  status                SubscriptionStatus @default(INCOMPLETE)
+  currentPeriodStart    DateTime
+  currentPeriodEnd      DateTime
+  cancelAtPeriodEnd     Boolean            @default(false)
+  canceledAt            DateTime?
+  trialStart            DateTime?
+  trialEnd              DateTime?
+  metadata              Json?
+  createdAt             DateTime           @default(now())
+  updatedAt             DateTime           @updatedAt
+
+  user                  User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  plan                  Plan               @relation(fields: [planId], references: [id], onDelete: Cascade)
+  price                 Price              @relation(fields: [priceId], references: [id], onDelete: Cascade)
+
+  @@index([userId, status])
+  @@index([status])
+  @@map("subscriptions")
 }

@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../database/prisma.service';
 import { StripeService } from '../stripe/stripe.service';
 import { RedisService } from '../redis/redis.service';
+import { SubscriptionService } from '../subscriptions/subscription.service';
 import Stripe from 'stripe';
 
 @Injectable()
@@ -14,6 +15,7 @@ export class WebhooksService {
     private readonly stripeService: StripeService,
     private readonly redisService: RedisService,
     private readonly configService: ConfigService,
+    private readonly subscriptionService: SubscriptionService,
   ) {}
 
   async processWebhook(payload: string | Buffer, signature: string): Promise<void> {
@@ -102,6 +104,37 @@ export class WebhooksService {
       case 'setup_intent.setup_failed':
         await this.handleSetupIntentFailed(
           event.data.object as Stripe.SetupIntent,
+        );
+        break;
+
+      // Subscription events
+      case 'customer.subscription.created':
+        await this.handleSubscriptionCreated(
+          event.data.object as Stripe.Subscription,
+        );
+        break;
+
+      case 'customer.subscription.updated':
+        await this.handleSubscriptionUpdated(
+          event.data.object as Stripe.Subscription,
+        );
+        break;
+
+      case 'customer.subscription.deleted':
+        await this.handleSubscriptionDeleted(
+          event.data.object as Stripe.Subscription,
+        );
+        break;
+
+      case 'invoice.payment_succeeded':
+        await this.handleInvoicePaymentSucceeded(
+          event.data.object as Stripe.Invoice,
+        );
+        break;
+
+      case 'invoice.payment_failed':
+        await this.handleInvoicePaymentFailed(
+          event.data.object as Stripe.Invoice,
         );
         break;
 
@@ -199,5 +232,42 @@ export class WebhooksService {
     this.logger.error(
       `Setup intent ${setupIntent.id} failed: ${setupIntent.last_setup_error?.message}`,
     );
+  }
+
+  // ===== SUBSCRIPTION HANDLERS =====
+
+  private async handleSubscriptionCreated(
+    subscription: Stripe.Subscription,
+  ): Promise<void> {
+    this.logger.log(`Subscription ${subscription.id} created`);
+    // Subscription is created via API, webhook just confirms
+  }
+
+  private async handleSubscriptionUpdated(
+    subscription: Stripe.Subscription,
+  ): Promise<void> {
+    this.logger.log(`Subscription ${subscription.id} updated`);
+    await this.subscriptionService.handleStripeSubscriptionUpdated(subscription);
+  }
+
+  private async handleSubscriptionDeleted(
+    subscription: Stripe.Subscription,
+  ): Promise<void> {
+    this.logger.log(`Subscription ${subscription.id} deleted`);
+    await this.subscriptionService.handleStripeSubscriptionDeleted(subscription);
+  }
+
+  private async handleInvoicePaymentSucceeded(
+    invoice: Stripe.Invoice,
+  ): Promise<void> {
+    this.logger.log(`Invoice ${invoice.id} payment succeeded`);
+    // Additional invoice handling if needed
+  }
+
+  private async handleInvoicePaymentFailed(
+    invoice: Stripe.Invoice,
+  ): Promise<void> {
+    this.logger.error(`Invoice ${invoice.id} payment failed`);
+    // Retry logic or notification could go here
   }
 }

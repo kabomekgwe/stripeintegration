@@ -114,6 +114,14 @@ docker-compose exec backend npx prisma studio
 
 ## API Endpoints
 
+### Subscriptions
+- `GET /subscriptions/plans` - List available subscription plans
+- `GET /subscriptions/plans/:id` - Get plan details
+- `POST /subscriptions` - Create new subscription
+- `GET /subscriptions` - Get current user's subscriptions
+- `PATCH /subscriptions/:id` - Update subscription (upgrade/downgrade)
+- `DELETE /subscriptions/:id` - Cancel subscription
+
 ### Tax Calculation
 - `POST /tax/calculate` - Calculate tax for amount with customer address
 - `POST /tax/preview` - Preview tax for multiple items

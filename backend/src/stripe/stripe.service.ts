@@ -215,4 +215,8 @@ export class StripeService {
   isStripeTaxEnabled(): boolean {
     return this.configService.get<boolean>('STRIPE_TAX_ENABLED') || false;
   }
+
+  getStripe(): Stripe {
+    return this.stripe;
+  }
 }

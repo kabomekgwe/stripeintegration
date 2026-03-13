@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { PrismaService } from '../database/prisma.service';
 import * as nodemailer from 'nodemailer';
 import * as handlebars from 'handlebars';
 
@@ -17,7 +18,10 @@ export class MailService {
   private readonly fromEmail: string;
   private readonly fromName: string;
 
-  constructor(private readonly configService: ConfigService) {
+  constructor(
+    private readonly configService: ConfigService,
+    private readonly prisma: PrismaService,
+  ) {
     const smtpHost = this.configService.get<string>('SMTP_HOST');
     const smtpPort = this.configService.get<number>('SMTP_PORT') || 587;
     const smtpUser = this.configService.get<string>('SMTP_USER');
@@ -439,5 +443,113 @@ export class MailService {
         <p style="color: #666; font-size: 14px;">Thank you for your business!</p>
       </div>
     `;
+  }
+
+  // ==================== SUBSCRIPTION EMAILS ====================
+
+  async sendBillingEmail(
+    userId: string,
+    type: 'TRIAL_ENDED' | 'SUBSCRIPTION_CANCELED' | 'SUBSCRIPTION_PAST_DUE',
+    data: Record<string, string | number>,
+  ): Promise<void> {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (!user) {
+      this.logger.warn(`User ${userId} not found for billing email`);
+      return;
+    }
+
+    const userName = user.name || user.email.split('@')[0];
+
+    switch (type) {
+      case 'TRIAL_ENDED':
+        await this.sendTrialEndedEmail(user.email, userName, data);
+        break;
+      case 'SUBSCRIPTION_CANCELED':
+        await this.sendSubscriptionCanceledEmail(user.email, userName, data);
+        break;
+      case 'SUBSCRIPTION_PAST_DUE':
+        await this.sendSubscriptionPastDueEmail(user.email, userName, data);
+        break;
+    }
+  }
+
+  private async sendTrialEndedEmail(
+    email: string,
+    userName: string,
+    data: Record<string, string | number>,
+  ): Promise<void> {
+    const html = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+        <h2 style="color: #0066cc;">Your Trial Has Ended</h2>
+        <p>Hi ${userName},</p>
+        <p>Your trial period for <strong>${data.planName}</strong> has ended, and your subscription is now active.</p>
+        <div style="background: #f8f9fa; padding: 20px; border-radius: 5px; margin: 20px 0;">
+          <p style="margin: 0;"><strong>Plan:</strong> ${data.planName}</p>
+          <p style="margin: 10px 0 0 0;"><strong>Amount:</strong> $${data.amount} ${data.currency}</p>
+          <p style="margin: 10px 0 0 0;"><strong>Next Billing:</strong> ${data.nextBillingDate}</p>
+        </div>
+        <p>Thank you for subscribing!</p>
+      </div>
+    `;
+
+    await this.send({
+      to: email,
+      subject: `Your ${data.planName} subscription is now active`,
+      html,
+      text: `Your trial has ended. Your ${data.planName} subscription is now active at $${data.amount}.`,
+    });
+  }
+
+  private async sendSubscriptionCanceledEmail(
+    email: string,
+    userName: string,
+    data: Record<string, string | number>,
+  ): Promise<void> {
+    const html = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+        <h2 style="color: #dc3545;">Subscription Canceled</h2>
+        <p>Hi ${userName},</p>
+        <p>Your subscription to <strong>${data.planName}</strong> has been canceled.</p>
+        <p style="color: #666; font-size: 14px;">We're sorry to see you go. You can reactivate anytime from your dashboard.</p>
+      </div>
+    `;
+
+    await this.send({
+      to: email,
+      subject: `${data.planName} subscription canceled`,
+      html,
+      text: `Your ${data.planName} subscription has been canceled.`,
+    });
+  }
+
+  private async sendSubscriptionPastDueEmail(
+    email: string,
+    userName: string,
+    data: Record<string, string | number>,
+  ): Promise<void> {
+    const html = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+        <h2 style="color: #ffc107;">Payment Failed</h2>
+        <p>Hi ${userName},</p>
+        <p>We couldn't process your payment for <strong>${data.planName}</strong>.</p>
+        <p>Please update your payment method to keep your subscription active.</p>
+        <div style="text-align: center; margin: 30px 0;">
+          <a href="${data.retryUrl}" 
+             style="background: #0066cc; color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; display: inline-block;">
+            Update Payment Method
+          </a>
+        </div>
+      </div>
+    `;
+
+    await this.send({
+      to: email,
+      subject: `Payment failed for ${data.planName}`,
+      html,
+      text: `Payment failed for ${data.planName}. Please update your payment method.`,
+    });
   }
 }
