@@ -228,16 +228,21 @@ export class StripeService {
     // Stripe Exchange Rates API returns rates for all supported currencies
     const response = await this.stripe.exchangeRates.list();
     
-    const rates: Record<string, number> = {};
+    // Find USD base rates
+    const usdRates = response.data.find((r) => r.id === 'usd');
     
-    // Convert Stripe's format to our format
-    for (const rate of response.data) {
-      rates[rate.id.toLowerCase()] = rate.rate;
+    if (usdRates) {
+      // Convert to our format (lowercase keys)
+      const rates: Record<string, number> = {};
+      for (const [currency, rate] of Object.entries(usdRates.rates)) {
+        rates[currency.toLowerCase()] = rate;
+      }
+      // Ensure USD is 1.0 (base currency)
+      rates['usd'] = 1.0;
+      return rates;
     }
     
-    // Ensure USD is 1.0 (base currency)
-    rates['usd'] = 1.0;
-    
-    return rates;
+    // Fallback: return empty if USD rates not found
+    return { usd: 1.0 };
   }
 }

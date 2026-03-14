@@ -1,6 +1,6 @@
 import { Processor, Process } from '@nestjs/bull';
 import { Logger } from '@nestjs/common';
-import { Job } from 'bull';
+import type { Job } from 'bull';
 import { ExchangeRateService } from './exchange-rate.service';
 
 @Processor('currency')
