@@ -6,10 +6,10 @@ import { baseApi } from './baseApi';
  * Endpoints for currency conversion and exchange rates.
  * 
  * Cache Strategy:
- * - getCurrencies: 5 minutes (static data)
- * - detectCurrency: no cache (IP-based, varies by user)
- * - convertCurrency: 1 minute (rates change frequently)
- * - validatePromoCode: no cache (validation should be fresh)
+ * - getCurrencies: Persist (static data, rarely changes)
+ * - detectCurrency: Persist (IP-based, same per session)
+ * - convertCurrency: Persist (rates cached until invalidated)
+ * - validatePromoCode: Persist (promo codes don't change often)
  */
 export const currencyApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
@@ -24,7 +24,7 @@ export const currencyApi = baseApi.injectEndpoints({
       default: string;
     }, void>({
       query: () => '/currency',
-      keepUnusedDataFor: 300, // Cache for 5 minutes (static data)
+      // Data persists until manually invalidated
     }),
 
     detectCurrency: builder.query<{
@@ -39,7 +39,7 @@ export const currencyApi = baseApi.injectEndpoints({
       note: string;
     }, void>({
       query: () => '/currency/detect',
-      keepUnusedDataFor: 0, // No cache (IP-based detection)
+      // Data persists until manually invalidated
     }),
 
     convertCurrency: builder.query<{
@@ -50,7 +50,7 @@ export const currencyApi = baseApi.injectEndpoints({
     }, { amount: number; from: string; to: string }>({
       query: ({ amount, from, to }) =>
         `/currency/convert?amount=${amount}&from=${from}&to=${to}`,
-      keepUnusedDataFor: 60, // Cache for 1 minute (exchange rates)
+      // Data persists until manually invalidated
     }),
 
     validatePromoCode: builder.query<{
@@ -66,7 +66,7 @@ export const currencyApi = baseApi.injectEndpoints({
       error?: string;
     }, string>({
       query: (code) => `/promo-codes/validate/${code}`,
-      keepUnusedDataFor: 0, // No cache (validation should always be fresh)
+      // Data persists until manually invalidated
     }),
   }),
 });

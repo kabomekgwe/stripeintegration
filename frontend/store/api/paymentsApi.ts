@@ -7,23 +7,23 @@ import type { Payment, PaymentIntentResponse, CreatePaymentRequest } from '@/typ
  * Endpoints for payment processing, refunds, and invoices.
  *
  * Cache Strategy:
- * - getPayments: 1 minute (payments update frequently)
- * - getPayment: 1 minute (single payment details)
- * - Mutations: no cache (actions)
- * - Lazy queries: no cache (downloads)
+ * - getPayments: Persist until 'Payments' tag invalidated
+ * - getPayment: Persist until 'Payments' tag invalidated
+ * - Mutations: Invalidate 'Payments' tag
+ * - Lazy queries: No cache (downloads)
  */
 export const paymentsApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
     getPayments: builder.query<{ payments: Payment[] }, void>({
       query: () => '/payments',
       providesTags: ['Payments'],
-      keepUnusedDataFor: 60, // Cache for 1 minute
+      // Data persists until 'Payments' tag is invalidated
     }),
 
     getPayment: builder.query<{ payment: Payment | null }, string>({
       query: (id) => `/payments/${id}`,
       providesTags: (result, error, id) => [{ type: 'Payments', id }],
-      keepUnusedDataFor: 60, // Cache for 1 minute
+      // Data persists until 'Payments' tag is invalidated
     }),
 
     createPaymentIntent: builder.mutation<PaymentIntentResponse, CreatePaymentRequest>({

@@ -1,6 +1,5 @@
 import type { Middleware, MiddlewareAPI, AnyAction } from '@reduxjs/toolkit';
-import type { RootState } from './index';
-import { PERSIST_CONFIG, getStorageType, getTTL, shouldPersist } from './persistConfig';
+import { PERSIST_CONFIG, getStorageType, shouldPersist } from './persistConfig';
 
 const RTK_QUERY_CACHE_KEY = 'rtk-query-cache-v1';
 const RTK_QUERY_SESSION_KEY = 'rtk-query-session-v1';
@@ -8,7 +7,6 @@ const RTK_QUERY_SESSION_KEY = 'rtk-query-session-v1';
 interface CachedEntry {
   data: unknown;
   timestamp: number;
-  ttl: number;
 }
 
 interface RTKQueryFulfilledAction extends AnyAction {
@@ -37,6 +35,12 @@ function isRTKQueryFulfilledAction(action: unknown): action is RTKQueryFulfilled
  * 
  * Automatically persists RTK Query cache to localStorage and sessionStorage
  * based on the configuration in persistConfig.ts
+ * 
+ * Cache Invalidation:
+ * - Data persists until explicitly invalidated via cache tags
+ * - Mutations automatically invalidate related tags
+ * - All cache cleared on logout
+ * - No automatic expiration (use tag-based invalidation instead)
  */
 export const rtkQueryPersistenceMiddleware: Middleware =
   (api: MiddlewareAPI) => (next) => (action) => {
@@ -49,13 +53,11 @@ export const rtkQueryPersistenceMiddleware: Middleware =
       
       if (endpointName && shouldPersist(endpointName)) {
         const storageType = getStorageType(endpointName);
-        const ttl = getTTL(endpointName);
         const cacheKey = `${endpointName}-${queryCacheKey || 'default'}`;
         
         const entry: CachedEntry = {
           data: action.payload,
           timestamp: Date.now(),
-          ttl,
         };
 
         try {
@@ -110,10 +112,7 @@ export function rehydrateRtkQueryCache(): Record<string, unknown> {
     );
     
     for (const [key, entry] of Object.entries(localCache)) {
-      const cached = entry as CachedEntry;
-      if (Date.now() - cached.timestamp < cached.ttl) {
-        rehydrated[key] = cached.data;
-      }
+      rehydrated[key] = (entry as CachedEntry).data;
     }
 
     // Rehydrate from sessionStorage
@@ -122,10 +121,7 @@ export function rehydrateRtkQueryCache(): Record<string, unknown> {
     );
     
     for (const [key, entry] of Object.entries(sessionCache)) {
-      const cached = entry as CachedEntry;
-      if (Date.now() - cached.timestamp < cached.ttl) {
-        rehydrated[key] = cached.data;
-      }
+      rehydrated[key] = (entry as CachedEntry).data;
     }
   } catch (error) {
     console.warn('Failed to rehydrate RTK Query cache:', error);
@@ -135,40 +131,15 @@ export function rehydrateRtkQueryCache(): Record<string, unknown> {
 }
 
 /**
- * Clear expired cache entries
+ * Clear all persisted cache
+ * Useful for logout or manual cache clearing
  */
-export function clearExpiredCache(): void {
+export function clearAllCache(): void {
   try {
-    // Clear expired localStorage entries
-    const localCache = JSON.parse(
-      localStorage.getItem(RTK_QUERY_CACHE_KEY) || '{}'
-    );
-    const now = Date.now();
-    
-    for (const [key, entry] of Object.entries(localCache)) {
-      const cached = entry as CachedEntry;
-      if (now - cached.timestamp > cached.ttl) {
-        delete localCache[key];
-      }
-    }
-    
-    localStorage.setItem(RTK_QUERY_CACHE_KEY, JSON.stringify(localCache));
-
-    // Clear expired sessionStorage entries
-    const sessionCache = JSON.parse(
-      sessionStorage.getItem(RTK_QUERY_SESSION_KEY) || '{}'
-    );
-    
-    for (const [key, entry] of Object.entries(sessionCache)) {
-      const cached = entry as CachedEntry;
-      if (now - cached.timestamp > cached.ttl) {
-        delete sessionCache[key];
-      }
-    }
-    
-    sessionStorage.setItem(RTK_QUERY_SESSION_KEY, JSON.stringify(sessionCache));
+    localStorage.removeItem(RTK_QUERY_CACHE_KEY);
+    sessionStorage.removeItem(RTK_QUERY_SESSION_KEY);
   } catch (error) {
-    console.warn('Failed to clear expired cache:', error);
+    console.warn('Failed to clear cache:', error);
   }
 }
 

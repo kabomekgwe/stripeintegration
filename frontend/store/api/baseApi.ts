@@ -7,9 +7,11 @@ import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
  * Domain-specific APIs use injectEndpoints to extend this.
  * 
  * Caching Strategy:
- * - keepUnusedDataFor: 60 seconds (default cache duration)
- * - refetchOnMountOrArgChange: true (refetch when component mounts with same args)
- * - refetchOnFocus: true (refetch when window regains focus)
+ * - Data persists until explicitly invalidated via tags
+ * - No automatic expiration (keepUnusedDataFor: Infinity)
+ * - Cache is cleared on logout or manual invalidation
+ * - refetchOnMountOrArgChange: false (use cache if available)
+ * - refetchOnFocus: false (don't refetch on focus)
  * - refetchOnReconnect: true (refetch when network reconnects)
  */
 export const baseApi = createApi({
@@ -30,9 +32,9 @@ export const baseApi = createApi({
     'Connect',
     'PromoCodes',
   ],
-  keepUnusedDataFor: 60, // Keep cached data for 60 seconds after last subscriber unsubscribes
-  refetchOnMountOrArgChange: true, // Refetch when component mounts with same args
-  refetchOnFocus: true, // Refetch when window regains focus
+  keepUnusedDataFor: Infinity, // Data persists until explicitly invalidated
+  refetchOnMountOrArgChange: false, // Use cache if available
+  refetchOnFocus: false, // Don't refetch on window focus
   refetchOnReconnect: true, // Refetch when network reconnects
   endpoints: () => ({}),
 });

@@ -1,13 +1,13 @@
 'use client';
 
 import { useCacheStatus, formatCacheSize } from '@/hooks/useCacheStatus';
-import { clearExpiredCache } from '@/store/persistenceMiddleware';
+import { clearAllCache } from '@/store/persistenceMiddleware';
 import { useState } from 'react';
 
 /**
  * Cache Status Panel
  * 
- * Displays current cache status and allows clearing expired cache.
+ * Displays current cache status and allows clearing all cache.
  * Useful for debugging and admin dashboards.
  */
 export function CacheStatusPanel() {
@@ -15,7 +15,7 @@ export function CacheStatusPanel() {
   const [cleared, setCleared] = useState(false);
 
   const handleClearCache = () => {
-    clearExpiredCache();
+    clearAllCache();
     setCleared(true);
     setTimeout(() => setCleared(false), 2000);
   };
@@ -50,13 +50,13 @@ export function CacheStatusPanel() {
 
       <button
         onClick={handleClearCache}
-        className="mt-6 w-full bg-gray-100 hover:bg-gray-200 text-gray-700 py-2 px-4 rounded-lg transition-colors"
+        className="mt-6 w-full bg-red-100 hover:bg-red-200 text-red-700 py-2 px-4 rounded-lg transition-colors"
       >
-        {cleared ? '✓ Cache Cleared' : 'Clear Expired Cache'}
+        {cleared ? '✓ Cache Cleared' : 'Clear All Cache'}
       </button>
       
       <p className="mt-4 text-xs text-gray-500">
-        Cache is automatically cleared when data expires or on logout.
+        Cache persists until invalidated via tags or manually cleared. Automatically cleared on logout.
       </p>
     </div>
   );

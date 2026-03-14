@@ -1,10 +1,7 @@
 import { configureStore } from '@reduxjs/toolkit';
 import { baseApi } from './api';
 import authReducer from './authSlice';
-import { rtkQueryPersistenceMiddleware, clearExpiredCache } from './persistenceMiddleware';
-
-// Clear expired cache on app startup
-clearExpiredCache();
+import { rtkQueryPersistenceMiddleware } from './persistenceMiddleware';
 
 export const store = configureStore({
   reducer: {

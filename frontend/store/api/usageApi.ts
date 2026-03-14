@@ -7,22 +7,22 @@ import type { UsageRecord, BillingPreview, BillingResult, MonthlyBillingResult, 
  * Endpoints for usage tracking and billing.
  *
  * Cache Strategy:
- * - getUsage: 1 minute (usage updates frequently)
- * - getBillingPreview: 30 seconds (preview should be fresh)
- * - Mutations: no cache (actions)
+ * - getUsage: Persist until 'Usage' tag invalidated
+ * - getBillingPreview: Persist until 'BillingPreview' tag invalidated
+ * - Mutations: Invalidate related tags
  */
 export const usageApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
     getUsage: builder.query<{ usage: UsageRecord[] }, void>({
       query: () => '/usage',
       providesTags: ['Usage'],
-      keepUnusedDataFor: 60, // Cache for 1 minute
+      // Data persists until 'Usage' tag is invalidated
     }),
 
     getBillingPreview: builder.query<{ preview: BillingPreview | null }, void>({
       query: () => '/usage/preview',
       providesTags: ['BillingPreview'],
-      keepUnusedDataFor: 30, // Cache for 30 seconds (preview should be fresh)
+      // Data persists until 'BillingPreview' tag is invalidated
     }),
 
     recordUsage: builder.mutation<{ usage: UsageRecord }, CreateUsageRequest>({

@@ -5,6 +5,12 @@
  * - localStorage: Long-term data (survives browser restart)
  * - sessionStorage: Short-term data (cleared when tab closes)
  * - memory only: Sensitive/real-time data (default RTK Query behavior)
+ * 
+ * Cache Invalidation Strategy:
+ * - Data persists until explicitly invalidated via cache tags
+ * - Mutations automatically invalidate related tags
+ * - Manual invalidation via dispatch(api.util.invalidateTags([...]))
+ * - All cache cleared on logout
  */
 
 export type StorageType = 'local' | 'session' | 'memory';
@@ -12,7 +18,6 @@ export type StorageType = 'local' | 'session' | 'memory';
 export interface PersistConfig {
   endpoint: string;
   storage: StorageType;
-  ttl?: number; // Time to live in milliseconds
 }
 
 /**
@@ -38,37 +43,37 @@ export interface PersistConfig {
  */
 export const PERSIST_CONFIG: Record<string, PersistConfig> = {
   // Auth - User profile to localStorage
-  'getMe': { endpoint: 'getMe', storage: 'local', ttl: 1000 * 60 * 60 * 24 }, // 24 hours
+  'getMe': { endpoint: 'getMe', storage: 'local' },
   
   // Currency - Static data to localStorage
-  'getCurrencies': { endpoint: 'getCurrencies', storage: 'local', ttl: 1000 * 60 * 60 * 24 }, // 24 hours
+  'getCurrencies': { endpoint: 'getCurrencies', storage: 'local' },
   
   // Payment Methods - to localStorage
-  'getPaymentMethods': { endpoint: 'getPaymentMethods', storage: 'local', ttl: 1000 * 60 * 60 }, // 1 hour
+  'getPaymentMethods': { endpoint: 'getPaymentMethods', storage: 'local' },
   
   // Subscriptions - to localStorage
-  'getSubscriptionPlans': { endpoint: 'getSubscriptionPlans', storage: 'local', ttl: 1000 * 60 * 60 * 24 }, // 24 hours
-  'getSubscription': { endpoint: 'getSubscription', storage: 'local', ttl: 1000 * 60 * 5 }, // 5 minutes
+  'getSubscriptionPlans': { endpoint: 'getSubscriptionPlans', storage: 'local' },
+  'getSubscription': { endpoint: 'getSubscription', storage: 'local' },
   
   // Payments - to sessionStorage
-  'getPayments': { endpoint: 'getPayments', storage: 'session', ttl: 1000 * 60 * 5 }, // 5 minutes
-  'getPayment': { endpoint: 'getPayment', storage: 'session', ttl: 1000 * 60 * 5 }, // 5 minutes
+  'getPayments': { endpoint: 'getPayments', storage: 'session' },
+  'getPayment': { endpoint: 'getPayment', storage: 'session' },
   
   // Usage - to sessionStorage
-  'getUsage': { endpoint: 'getUsage', storage: 'session', ttl: 1000 * 60 * 2 }, // 2 minutes
+  'getUsage': { endpoint: 'getUsage', storage: 'session' },
   
   // Admin - to sessionStorage
-  'getAdminDashboard': { endpoint: 'getAdminDashboard', storage: 'session', ttl: 1000 * 60 * 2 }, // 2 minutes
-  'getAdminMetrics': { endpoint: 'getAdminMetrics', storage: 'session', ttl: 1000 * 60 * 2 },
-  'getAdminRevenue': { endpoint: 'getAdminRevenue', storage: 'session', ttl: 1000 * 60 * 2 },
+  'getAdminDashboard': { endpoint: 'getAdminDashboard', storage: 'session' },
+  'getAdminMetrics': { endpoint: 'getAdminMetrics', storage: 'session' },
+  'getAdminRevenue': { endpoint: 'getAdminRevenue', storage: 'session' },
   
   // Disputes - to sessionStorage
-  'getDisputes': { endpoint: 'getDisputes', storage: 'session', ttl: 1000 * 60 * 5 },
-  'getMyDisputes': { endpoint: 'getMyDisputes', storage: 'session', ttl: 1000 * 60 * 5 },
+  'getDisputes': { endpoint: 'getDisputes', storage: 'session' },
+  'getMyDisputes': { endpoint: 'getMyDisputes', storage: 'session' },
   
   // Connect - to localStorage
-  'getConnectedAccount': { endpoint: 'getConnectedAccount', storage: 'local', ttl: 1000 * 60 * 5 }, // 5 minutes
-  'getPlatformBalance': { endpoint: 'getPlatformBalance', storage: 'session', ttl: 1000 * 60 * 2 }, // 2 minutes
+  'getConnectedAccount': { endpoint: 'getConnectedAccount', storage: 'local' },
+  'getPlatformBalance': { endpoint: 'getPlatformBalance', storage: 'session' },
 };
 
 /**
@@ -76,13 +81,6 @@ export const PERSIST_CONFIG: Record<string, PersistConfig> = {
  */
 export function getStorageType(endpointName: string): StorageType {
   return PERSIST_CONFIG[endpointName]?.storage ?? 'memory';
-}
-
-/**
- * Get TTL for an endpoint
- */
-export function getTTL(endpointName: string): number {
-  return PERSIST_CONFIG[endpointName]?.ttl ?? 0;
 }
 
 /**

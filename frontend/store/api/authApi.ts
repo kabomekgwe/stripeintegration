@@ -7,8 +7,8 @@ import type { User, AuthResponse } from '@/types';
  * Endpoints for user authentication and profile management.
  * 
  * Cache Strategy:
- * - getMe: 5 minutes (user data changes infrequently)
- * - Mutations: no cache (actions, not data)
+ * - getMe: Persist until invalidated via 'User' tag
+ * - Mutations: Invalidate 'User' tag to refresh data
  */
 export const authApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
@@ -41,7 +41,7 @@ export const authApi = baseApi.injectEndpoints({
     getMe: builder.query<User, void>({
       query: () => '/auth/me',
       providesTags: ['User'],
-      keepUnusedDataFor: 300, // Cache for 5 minutes
+      // Data persists until 'User' tag is invalidated
     }),
 
     requestPasswordReset: builder.mutation<{ message: string }, { email: string }>({
