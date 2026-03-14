@@ -2,22 +2,77 @@
 
 import { useState } from 'react';
 import { Navbar } from '@/components/Navbar';
-import { useGetSubscriptionPlansQuery, useGetSubscriptionQuery, useCreateSubscriptionMutation } from '@/store/api';
+import { 
+  useGetSubscriptionPlansQuery, 
+  useGetSubscriptionQuery, 
+  useCreateSubscriptionMutation,
+  useGetMeQuery,
+  useConvertCurrencyQuery,
+} from '@/store/api';
 import Link from 'next/link';
 
-function formatPrice(cents: number, interval: string, intervalCount: number): string {
+const currencySymbols: Record<string, string> = {
+  usd: '$',
+  eur: '€',
+  gbp: '£',
+  cad: 'C$',
+  aud: 'A$',
+  jpy: '¥',
+};
+
+function formatPrice(cents: number, currency: string, interval: string, intervalCount: number): string {
+  const symbol = currencySymbols[currency.toLowerCase()] || '$';
   const dollars = (cents / 100).toFixed(2);
   if (intervalCount === 1) {
-    return `$${dollars}/${interval.toLowerCase()}`;
+    return `${symbol}${dollars}/${interval.toLowerCase()}`;
   }
-  return `$${dollars} every ${intervalCount} ${interval.toLowerCase()}s`;
+  return `${symbol}${dollars} every ${intervalCount} ${interval.toLowerCase()}s`;
+}
+
+function PriceDisplay({ 
+  amount, 
+  currency, 
+  userCurrency 
+}: { 
+  amount: number; 
+  currency: string; 
+  userCurrency: string;
+}) {
+  const symbol = currencySymbols[userCurrency.toLowerCase()] || '$';
+  const dollars = (amount / 100).toFixed(2);
+  
+  // Get USD equivalent if not already in USD
+  const { data: conversionData } = useConvertCurrencyQuery(
+    { amount, from: userCurrency, to: 'usd' },
+    { skip: userCurrency.toLowerCase() === 'usd' }
+  );
+  
+  const usdEquivalent = conversionData?.converted?.amount 
+    ? (conversionData.converted.amount / 100).toFixed(2)
+    : null;
+
+  return (
+    <div>
+      <span className="text-4xl font-bold">
+        {symbol}{dollars}
+      </span>
+      {userCurrency.toLowerCase() !== 'usd' && usdEquivalent && (
+        <p className="text-sm text-blue-600 mt-1">
+          ≈ ${usdEquivalent} USD
+        </p>
+      )}
+    </div>
+  );
 }
 
 export default function SubscriptionsPage() {
+  const { data: user } = useGetMeQuery();
   const { data: plansData, isLoading: plansLoading } = useGetSubscriptionPlansQuery();
   const { data: subscriptionData, isLoading: subLoading } = useGetSubscriptionQuery();
   const [createSubscription, { isLoading: creating }] = useCreateSubscriptionMutation();
   const [selectedInterval, setSelectedInterval] = useState<'month' | 'year'>('month');
+
+  const userCurrency = user?.preferredCurrency || 'usd';
 
   if (plansLoading || subLoading) {
     return (
@@ -76,7 +131,12 @@ export default function SubscriptionsPage() {
               <div className="bg-gray-50 p-4 rounded-lg">
                 <p className="text-sm text-gray-500">Price</p>
                 <p className="font-medium">
-                  {formatPrice(currentSubscription.price.amount, currentSubscription.price.interval, currentSubscription.price.intervalCount)}
+                  {formatPrice(
+                    currentSubscription.price.amount, 
+                    currentSubscription.price.currency || 'usd',
+                    currentSubscription.price.interval, 
+                    currentSubscription.price.intervalCount
+                  )}
                 </p>
               </div>
             </div>
@@ -116,7 +176,16 @@ export default function SubscriptionsPage() {
       <main className="mx-auto max-w-6xl px-4 py-8">
         <div className="text-center mb-12">
           <h1 className="text-4xl font-bold mb-4">Choose Your Plan</h1>
-          <p className="text-gray-600 max-w-2xl mx-auto">Select a subscription plan that fits your needs. All plans include access to our core features.</p>
+          <p className="text-gray-600 max-w-2xl mx-auto">
+            Select a subscription plan that fits your needs. All plans include access to our core features.
+          </p>
+          
+          {/* Currency Notice */}
+          {userCurrency !== 'usd' && (
+            <p className="text-sm text-blue-600 mt-2">
+              Prices shown in {userCurrency.toUpperCase()} (with USD equivalent)
+            </p>
+          )}
           
           {/* Interval Toggle */}
           <div className="inline-flex bg-gray-200 rounded-lg p-1 mt-6">
@@ -160,9 +229,11 @@ export default function SubscriptionsPage() {
                 <p className="text-gray-500 text-sm mb-6">{plan.description}</p>
                 
                 <div className="mb-6">
-                  <span className="text-4xl font-bold">
-                    ${(price?.amount / 100 || 0).toFixed(0)}
-                  </span>
+                  <PriceDisplay 
+                    amount={price?.amount || 0} 
+                    currency={price?.currency || 'usd'}
+                    userCurrency={userCurrency}
+                  />
                   <span className="text-gray-500">
                     {price?.interval === 'YEAR' ? '/year' : '/month'}
                   </span>
