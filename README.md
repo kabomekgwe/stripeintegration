@@ -18,6 +18,7 @@ A full-stack payment application with embedded Stripe integration, usage-based b
 - 🎟️ Promo codes & discounts
 - 📊 Usage-based monthly billing
 - 📡 Webhooks Dashboard (monitor delivery & retry)
+- ⚔️ Dispute handling (chargebacks)
 - 🐳 Docker Compose setup with PostgreSQL & Redis
 - 🔄 Webhook handling with idempotency
 - ⏱️ Rate limiting on payment endpoints
@@ -155,6 +156,14 @@ docker-compose exec backend npx prisma studio
 - `POST /usage-subscriptions` - Create metered subscription
 - `POST /usage-subscriptions/:id/usage` - Record usage
 - `GET /usage-subscriptions/:id/usage-summary` - Get usage summary
+
+### Disputes (Chargebacks)
+- `GET /disputes` - List all disputes (admin)
+- `GET /disputes/my-disputes` - Get user's disputes
+- `GET /disputes/stats` - Get dispute statistics (admin)
+- `GET /disputes/:id` - Get dispute details
+- `POST /disputes/:id/evidence` - Submit dispute evidence (admin)
+- `POST /disputes/:id/close` - Close dispute manually (admin)
 
 ### Admin (Requires ADMIN role)
 - `GET /admin/dashboard` - Get dashboard summary with metrics

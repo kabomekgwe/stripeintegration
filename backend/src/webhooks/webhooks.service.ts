@@ -4,6 +4,7 @@ import { PrismaService } from '../database/prisma.service';
 import { StripeService } from '../stripe/stripe.service';
 import { RedisService } from '../redis/redis.service';
 import { SubscriptionService } from '../subscriptions/subscription.service';
+import { DisputeService } from '../disputes/dispute.service';
 import Stripe from 'stripe';
 
 @Injectable()
@@ -16,6 +17,7 @@ export class WebhooksService {
     private readonly redisService: RedisService,
     private readonly configService: ConfigService,
     private readonly subscriptionService: SubscriptionService,
+    private readonly disputeService: DisputeService,
   ) {}
 
   async processWebhook(payload: string | Buffer, signature: string): Promise<void> {
@@ -135,6 +137,19 @@ export class WebhooksService {
       case 'invoice.payment_failed':
         await this.handleInvoicePaymentFailed(
           event.data.object as Stripe.Invoice,
+        );
+        break;
+
+      // Dispute events
+      case 'charge.dispute.created':
+        await this.handleDisputeCreated(
+          event.data.object as Stripe.Dispute,
+        );
+        break;
+
+      case 'charge.dispute.updated':
+        await this.handleDisputeUpdated(
+          event.data.object as Stripe.Dispute,
         );
         break;
 
@@ -394,5 +409,19 @@ export class WebhooksService {
       orderBy: { createdAt: 'desc' },
       take: limit,
     });
+  }
+
+  // ===== DISPUTE HANDLERS =====
+
+  private async handleDisputeCreated(
+    dispute: Stripe.Dispute,
+  ): Promise<void> {
+    await this.disputeService.handleDisputeCreated(dispute);
+  }
+
+  private async handleDisputeUpdated(
+    dispute: Stripe.Dispute,
+  ): Promise<void> {
+    await this.disputeService.handleDisputeUpdated(dispute);
   }
 }

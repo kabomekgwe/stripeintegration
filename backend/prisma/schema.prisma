@@ -28,6 +28,7 @@ model User {
   usageRecords          UsageRecord[]
   subscriptions         Subscription[]
   promoCodeUsages       PromoCodeUsage[]
+  disputes              Dispute[]
 
   @@map("users")
 }
@@ -71,6 +72,7 @@ model PaymentRecord {
   user                    User          @relation(fields: [userId], references: [id], onDelete: Cascade)
   refunds                 Refund[]
   usageRecords            UsageRecord[] // reverse relation
+  disputes                Dispute[]
 
   @@index([userId])
   @@index([status])
@@ -278,4 +280,33 @@ model PromoCodeUsage {
   @@index([promoCodeId])
   @@index([userId])
   @@map("promo_code_usages")
+}
+
+// ==================== DISPUTES ====================
+
+model Dispute {
+  id                String          @id @default(cuid())
+  stripeDisputeId   String          @unique
+  paymentId         String
+  userId            String
+  amount            Int             // in cents
+  currency          String
+  reason            String
+  status            String          // needs_response, won, lost
+  evidenceDueBy     DateTime?
+  isChargeRefundable Boolean        @default(false)
+  evidenceSubmitted Boolean         @default(false)
+  evidenceSubmittedAt DateTime?
+  evidence          Json?           // Store evidence details
+  statusTransitions Json[]          // Array of status changes
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+
+  payment           PaymentRecord   @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+  user              User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([status])
+  @@index([createdAt])
+  @@map("disputes")
 }

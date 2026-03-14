@@ -552,4 +552,107 @@ export class MailService {
       text: `Payment failed for ${data.planName}. Please update your payment method.`,
     });
   }
+
+  // ==================== DISPUTE EMAILS ====================
+
+  async sendDisputeNotification(
+    userId: string,
+    data: {
+      disputeId: string;
+      amount: string;
+      currency: string;
+      reason: string;
+      evidenceDueDate: string;
+    },
+  ): Promise<void> {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (!user) return;
+
+    const userName = user.name || user.email.split('@')[0];
+
+    const html = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+        <h2 style="color: #dc3545;">⚠️ Chargeback Initiated</h2>
+        <p>Hi ${userName},</p>
+        <p>A chargeback has been initiated for a payment of <strong>${data.currency} $${data.amount}</strong>.</p>
+        <div style="background: #f8f9fa; padding: 20px; border-radius: 5px; margin: 20px 0;">
+          <p style="margin: 0;"><strong>Dispute ID:</strong> ${data.disputeId}</p>
+          <p style="margin: 10px 0 0 0;"><strong>Reason:</strong> ${data.reason}</p>
+          <p style="margin: 10px 0 0 0;"><strong>Evidence Due:</strong> ${data.evidenceDueDate}</p>
+        </div>
+        <p>We are reviewing this dispute and will respond accordingly. You may be contacted if additional information is needed.</p>
+        <p style="color: #666; font-size: 14px;">For questions, please contact our support team.</p>
+      </div>
+    `;
+
+    await this.send({
+      to: user.email,
+      subject: `Chargeback Initiated - ${data.currency} $${data.amount}`,
+      html,
+      text: `A chargeback has been initiated for ${data.currency} $${data.amount}. Dispute ID: ${data.disputeId}`,
+    });
+  }
+
+  async sendDisputeWonNotification(
+    userId: string,
+    data: { disputeId: string; amount: string; currency: string },
+  ): Promise<void> {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (!user) return;
+
+    const userName = user.name || user.email.split('@')[0];
+
+    const html = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+        <h2 style="color: #28a745;">✅ Dispute Won</h2>
+        <p>Hi ${userName},</p>
+        <p>Good news! We have won the dispute for <strong>${data.currency} $${data.amount}</strong>.</p>
+        <p>The funds have been returned to your account.</p>
+        <p style="color: #666; font-size: 14px;">Dispute ID: ${data.disputeId}</p>
+      </div>
+    `;
+
+    await this.send({
+      to: user.email,
+      subject: `Dispute Won - ${data.currency} $${data.amount}`,
+      html,
+      text: `We won the dispute for ${data.currency} $${data.amount}.`,
+    });
+  }
+
+  async sendDisputeLostNotification(
+    userId: string,
+    data: { disputeId: string; amount: string; currency: string },
+  ): Promise<void> {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (!user) return;
+
+    const userName = user.name || user.email.split('@')[0];
+
+    const html = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+        <h2 style="color: #dc3545;">❌ Dispute Lost</h2>
+        <p>Hi ${userName},</p>
+        <p>We regret to inform you that the dispute for <strong>${data.currency} $${data.amount}</strong> has been decided in favor of the customer.</p>
+        <p>The chargeback stands and the funds have been debited from your account.</p>
+        <p style="color: #666; font-size: 14px;">Dispute ID: ${data.disputeId}</p>
+      </div>
+    `;
+
+    await this.send({
+      to: user.email,
+      subject: `Dispute Lost - ${data.currency} $${data.amount}`,
+      html,
+      text: `The dispute for ${data.currency} $${data.amount} was lost.`,
+    });
+  }
 }
