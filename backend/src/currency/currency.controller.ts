@@ -1,9 +1,13 @@
 import { Controller, Get, Query, Headers, Ip } from '@nestjs/common';
 import { CurrencyService } from './currency.service';
+import { ExchangeRateService } from './exchange-rate.service';
 
 @Controller('currency')
 export class CurrencyController {
-  constructor(private readonly currencyService: CurrencyService) {}
+  constructor(
+    private readonly currencyService: CurrencyService,
+    private readonly exchangeRateService: ExchangeRateService,
+  ) {}
 
   @Get()
   getSupportedCurrencies() {
@@ -111,6 +115,23 @@ export class CurrencyController {
       base: base.toUpperCase(),
       rates,
       lastUpdate: this.currencyService.getLastRateUpdate(),
+    };
+  }
+
+  @Get('health')
+  async getHealth() {
+    const lastUpdate = this.currencyService.getLastRateUpdate();
+    const cachedRates = await this.exchangeRateService.getCachedRates();
+
+    const isStale = lastUpdate
+      ? Date.now() - lastUpdate.getTime() > 24 * 60 * 60 * 1000 // 24 hours
+      : true;
+
+    return {
+      status: isStale ? 'stale' : 'healthy',
+      lastUpdate: lastUpdate?.toISOString(),
+      cachedCurrencies: cachedRates ? Object.keys(cachedRates).length : 0,
+      source: 'Stripe Exchange Rates API',
     };
   }
 }
