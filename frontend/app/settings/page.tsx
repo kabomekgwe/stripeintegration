@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { Navbar } from '@/components/Navbar';
-import { useCreatePortalSessionMutation, useGetMeQuery, useUpdatePreferredCurrencyMutation, useGetCurrenciesQuery } from '@/store/api';
+import { useCreatePortalSessionMutation, useGetMeQuery, useUpdatePreferredCurrencyMutation, useUpdateCountryMutation, useGetCurrenciesQuery } from '@/store/api';
 import Link from 'next/link';
 
 const currencyFlags: Record<string, string> = {
@@ -14,19 +14,47 @@ const currencyFlags: Record<string, string> = {
   jpy: '🇯🇵',
 };
 
+const countries = [
+  { code: 'US', name: 'United States', flag: '🇺🇸' },
+  { code: 'CA', name: 'Canada', flag: '🇨🇦' },
+  { code: 'GB', name: 'United Kingdom', flag: '🇬🇧' },
+  { code: 'DE', name: 'Germany', flag: '🇩🇪' },
+  { code: 'FR', name: 'France', flag: '🇫🇷' },
+  { code: 'IT', name: 'Italy', flag: '🇮🇹' },
+  { code: 'ES', name: 'Spain', flag: '🇪🇸' },
+  { code: 'NL', name: 'Netherlands', flag: '🇳🇱' },
+  { code: 'AU', name: 'Australia', flag: '🇦🇺' },
+  { code: 'JP', name: 'Japan', flag: '🇯🇵' },
+  { code: 'MX', name: 'Mexico', flag: '🇲🇽' },
+  { code: 'BR', name: 'Brazil', flag: '🇧🇷' },
+  { code: 'SG', name: 'Singapore', flag: '🇸🇬' },
+  { code: 'HK', name: 'Hong Kong', flag: '🇭🇰' },
+  { code: 'NZ', name: 'New Zealand', flag: '🇳🇿' },
+  { code: 'CH', name: 'Switzerland', flag: '🇨🇭' },
+  { code: 'SE', name: 'Sweden', flag: '🇸🇪' },
+  { code: 'NO', name: 'Norway', flag: '🇳🇴' },
+  { code: 'DK', name: 'Denmark', flag: '🇩🇰' },
+  { code: 'IN', name: 'India', flag: '🇮🇳' },
+];
+
 export default function SettingsPage() {
   const { data: user } = useGetMeQuery();
   const { data: currenciesData } = useGetCurrenciesQuery();
   const [createPortalSession, { isLoading: isPortalLoading }] = useCreatePortalSessionMutation();
   const [updateCurrency, { isLoading: isUpdatingCurrency }] = useUpdatePreferredCurrencyMutation();
+  const [updateCountry, { isLoading: isUpdatingCountry }] = useUpdateCountryMutation();
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [selectedCurrency, setSelectedCurrency] = useState(user?.preferredCurrency || 'usd');
+  const [selectedCountry, setSelectedCountry] = useState(user?.country || '');
 
-  // Update selected currency when user data loads
+  // Update selected values when user data loads
   useEffect(() => {
     if (user?.preferredCurrency) {
       setSelectedCurrency(user.preferredCurrency);
+    }
+    if (user?.country) {
+      setSelectedCountry(user.country);
     }
   }, [user]);
 
@@ -50,6 +78,24 @@ export default function SettingsPage() {
       setTimeout(() => setSuccess(''), 3000);
     } catch (err: any) {
       setError(err.data?.message || 'Failed to update currency. Please try again.');
+    }
+  };
+
+  const handleCountryChange = async (country: string) => {
+    try {
+      setError('');
+      setSuccess('');
+      const result = await updateCountry(country).unwrap();
+      setSelectedCountry(country);
+      if (result.suggestedCurrency.source === 'country') {
+        setSelectedCurrency(result.suggestedCurrency.currency);
+        setSuccess(`Country updated! Currency changed to ${result.suggestedCurrency.currency.toUpperCase()} based on your location`);
+      } else {
+        setSuccess('Country updated successfully');
+      }
+      setTimeout(() => setSuccess(''), 5000);
+    } catch (err: any) {
+      setError(err.data?.message || 'Failed to update country. Please try again.');
     }
   };
 
@@ -113,6 +159,39 @@ export default function SettingsPage() {
               Your preferred currency will be used for all future payments and subscriptions.
               Exchange rates are applied at the time of payment.
             </p>
+          </div>
+
+          {/* Country Section */}
+          <div className="bg-white rounded-lg shadow p-6">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                <span className="text-xl">🌍</span>
+              </div>
+              <div>
+                <h2 className="text-xl font-semibold">Country</h2>
+                <p className="text-gray-600">Set your country for localized currency suggestions</p>
+              </div>
+            </div>
+
+            <div className="max-w-md">
+              <select
+                id="country"
+                value={selectedCountry}
+                onChange={(e) => handleCountryChange(e.target.value)}
+                disabled={isUpdatingCountry}
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white disabled:opacity-50"
+              >
+                <option value="">Select your country</option>
+                {countries.map((c) => (
+                  <option key={c.code} value={c.code}>
+                    {c.flag} {c.name}
+                  </option>
+                ))}
+              </select>
+              <p className="text-sm text-gray-500 mt-2">
+                We'll automatically suggest the best currency for your region
+              </p>
+            </div>
           </div>
 
           {/* Billing Section */}

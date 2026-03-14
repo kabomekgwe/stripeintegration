@@ -110,6 +110,15 @@ export class UsersService {
     return this.toEntity(user);
   }
 
+  async updateCountry(userId: string, country: string): Promise<UserEntity> {
+    const user = await this.prisma.user.update({
+      where: { id: userId },
+      data: { country },
+    });
+
+    return this.toEntity(user);
+  }
+
   private toEntity(user: any): UserEntity {
     return {
       id: user.id,
