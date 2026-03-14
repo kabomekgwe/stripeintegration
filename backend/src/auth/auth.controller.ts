@@ -8,6 +8,7 @@ import {
   UseGuards,
   Get,
   Request,
+  Patch,
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
@@ -15,10 +16,14 @@ import { RegisterDto } from './dto/register.dto';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
+import { UsersService } from '../users/users.service';
 
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  constructor(
+    private readonly authService: AuthService,
+    private readonly usersService: UsersService,
+  ) {}
 
   @Post('register')
   @HttpCode(HttpStatus.CREATED)
@@ -67,8 +72,10 @@ export class AuthController {
       id: user.id,
       email: user.email,
       name: user.name,
+      role: user.role,
       stripeCustomerId: user.stripeCustomerId,
       defaultPaymentMethodId: user.defaultPaymentMethodId,
+      preferredCurrency: user.preferredCurrency || 'usd',
     };
   }
 
@@ -86,5 +93,19 @@ export class AuthController {
   async resetPassword(@Body() dto: ResetPasswordDto) {
     await this.authService.resetPassword(dto);
     return { message: 'Password reset successful' };
+  }
+
+  @Patch('preferred-currency')
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(HttpStatus.OK)
+  async updatePreferredCurrency(
+    @Request() req,
+    @Body('currency') currency: string,
+  ) {
+    const user = await this.usersService.updatePreferredCurrency(req.user.id, currency);
+    return {
+      message: 'Currency updated',
+      preferredCurrency: user.preferredCurrency,
+    };
   }
 }

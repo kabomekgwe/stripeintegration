@@ -75,6 +75,14 @@ export const api = createApi({
         body: data,
       }),
     }),
+    updatePreferredCurrency: builder.mutation<{ message: string; preferredCurrency: string }, string>({
+      query: (currency) => ({
+        url: '/auth/preferred-currency',
+        method: 'PATCH',
+        body: { currency },
+      }),
+      invalidatesTags: ['User'],
+    }),
 
     // Payment Methods endpoints
     getPaymentMethods: builder.query<{ paymentMethods: PaymentMethod[] }, void>({
@@ -601,6 +609,7 @@ export const {
   useGetMeQuery,
   useRequestPasswordResetMutation,
   useResetPasswordMutation,
+  useUpdatePreferredCurrencyMutation,
   useGetPaymentMethodsQuery,
   useCreateSetupIntentMutation,
   useSavePaymentMethodMutation,

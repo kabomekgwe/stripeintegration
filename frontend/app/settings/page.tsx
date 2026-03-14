@@ -1,24 +1,59 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Navbar } from '@/components/Navbar';
-import { useCreatePortalSessionMutation } from '@/store/api';
+import { useCreatePortalSessionMutation, useGetMeQuery, useUpdatePreferredCurrencyMutation, useGetCurrenciesQuery } from '@/store/api';
 import Link from 'next/link';
 
+const currencyFlags: Record<string, string> = {
+  usd: '🇺🇸',
+  eur: '🇪🇺',
+  gbp: '🇬🇧',
+  cad: '🇨🇦',
+  aud: '🇦🇺',
+  jpy: '🇯🇵',
+};
+
 export default function SettingsPage() {
-  const [createPortalSession, { isLoading }] = useCreatePortalSessionMutation();
+  const { data: user } = useGetMeQuery();
+  const { data: currenciesData } = useGetCurrenciesQuery();
+  const [createPortalSession, { isLoading: isPortalLoading }] = useCreatePortalSessionMutation();
+  const [updateCurrency, { isLoading: isUpdatingCurrency }] = useUpdatePreferredCurrencyMutation();
   const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
+  const [selectedCurrency, setSelectedCurrency] = useState(user?.preferredCurrency || 'usd');
+
+  // Update selected currency when user data loads
+  useEffect(() => {
+    if (user?.preferredCurrency) {
+      setSelectedCurrency(user.preferredCurrency);
+    }
+  }, [user]);
 
   const handleManageBilling = async () => {
     try {
       setError('');
       const result = await createPortalSession().unwrap();
-      // Redirect to Stripe Customer Portal
       window.location.href = result.url;
     } catch (err: any) {
       setError(err.data?.message || 'Failed to open billing portal. Please try again.');
     }
   };
+
+  const handleCurrencyChange = async (currency: string) => {
+    try {
+      setError('');
+      setSuccess('');
+      await updateCurrency(currency).unwrap();
+      setSelectedCurrency(currency);
+      setSuccess('Currency preference updated successfully');
+      setTimeout(() => setSuccess(''), 3000);
+    } catch (err: any) {
+      setError(err.data?.message || 'Failed to update currency. Please try again.');
+    }
+  };
+
+  const currencies = currenciesData?.currencies || [];
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -26,7 +61,60 @@ export default function SettingsPage() {
       <main className="mx-auto max-w-4xl px-4 py-8">
         <h1 className="text-3xl font-bold mb-8">Settings</h1>
 
+        {error && (
+          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-6">
+            {error}
+          </div>
+        )}
+
+        {success && (
+          <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg mb-6">
+            {success}
+          </div>
+        )}
+
         <div className="space-y-6">
+          {/* Currency Preference Section */}
+          <div className="bg-white rounded-lg shadow p-6">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
+                <span className="text-xl">💱</span>
+              </div>
+              <div>
+                <h2 className="text-xl font-semibold">Currency Preference</h2>
+                <p className="text-gray-600">Choose your preferred currency for payments</p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+              {currencies.map((currency: any) => (
+                <button
+                  key={currency.code}
+                  onClick={() => handleCurrencyChange(currency.code.toLowerCase())}
+                  disabled={isUpdatingCurrency}
+                  className={`p-4 border rounded-lg text-left transition-colors ${
+                    selectedCurrency === currency.code.toLowerCase()
+                      ? 'border-blue-500 bg-blue-50'
+                      : 'border-gray-200 hover:bg-gray-50'
+                  }`}
+                >
+                  <div className="flex items-center gap-2">
+                    <span className="text-2xl">{currencyFlags[currency.code.toLowerCase()] || '💰'}</span>
+                    <div>
+                      <p className="font-medium">{currency.code}</p>
+                      <p className="text-sm text-gray-500">{currency.name}</p>
+                    </div>
+                  </div>
+                </button>
+              ))}
+            </div>
+
+            <p className="text-sm text-gray-500 mt-4">
+              Your preferred currency will be used for all future payments and subscriptions.
+              Exchange rates are applied at the time of payment.
+            </p>
+          </div>
+
           {/* Billing Section */}
           <div className="bg-white rounded-lg shadow p-6">
             <div className="flex items-center gap-3 mb-4">
@@ -41,16 +129,10 @@ export default function SettingsPage() {
               </div>
             </div>
 
-            {error && (
-              <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-4">
-                {error}
-              </div>
-            )}
-
             <div className="space-y-3">
               <button
                 onClick={handleManageBilling}
-                disabled={isLoading}
+                disabled={isPortalLoading}
                 className="w-full flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
               >
                 <div className="flex items-center gap-3">

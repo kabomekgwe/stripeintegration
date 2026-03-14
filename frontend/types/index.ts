@@ -5,6 +5,7 @@ export interface User {
   role: 'USER' | 'ADMIN';
   stripeCustomerId?: string;
   defaultPaymentMethodId?: string;
+  preferredCurrency?: string;
 }
 
 export interface PaymentMethod {

@@ -5,6 +5,7 @@ export class UserEntity {
   role: string;
   stripeCustomerId?: string;
   defaultPaymentMethodId?: string;
+  preferredCurrency: string;
   createdAt: Date;
   updatedAt: Date;
 }

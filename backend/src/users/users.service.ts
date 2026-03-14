@@ -97,6 +97,18 @@ export class UsersService {
     });
   }
 
+  async updatePreferredCurrency(
+    userId: string,
+    currency: string,
+  ): Promise<UserEntity> {
+    const user = await this.prisma.user.update({
+      where: { id: userId },
+      data: { preferredCurrency: currency.toLowerCase() },
+    });
+
+    return this.toEntity(user);
+  }
+
   private toEntity(user: any): UserEntity {
     return {
       id: user.id,
@@ -105,6 +117,7 @@ export class UsersService {
       role: user.role,
       stripeCustomerId: user.stripeCustomerId,
       defaultPaymentMethodId: user.defaultPaymentMethodId,
+      preferredCurrency: user.preferredCurrency || 'usd',
       createdAt: user.createdAt,
       updatedAt: user.updatedAt,
     };

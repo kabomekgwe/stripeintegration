@@ -1,14 +1,34 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Navbar } from '@/components/Navbar';
 import { PaymentElementForm } from '@/components/stripe/PaymentElementForm';
-import { useCreatePaymentIntentMutation, useGetPaymentMethodsQuery } from '@/store/api';
+import { useCreatePaymentIntentMutation, useGetPaymentMethodsQuery, useGetMeQuery, useGetCurrenciesQuery } from '@/store/api';
+
+const currencySymbols: Record<string, string> = {
+  usd: '$',
+  eur: '€',
+  gbp: '£',
+  cad: 'C$',
+  aud: 'A$',
+  jpy: '¥',
+};
+
+const currencyFlags: Record<string, string> = {
+  usd: '🇺🇸',
+  eur: '🇪🇺',
+  gbp: '🇬🇧',
+  cad: '🇨🇦',
+  aud: '🇦🇺',
+  jpy: '🇯🇵',
+};
 
 export default function MakePaymentPage() {
   const router = useRouter();
+  const { data: user } = useGetMeQuery();
+  const { data: currenciesData } = useGetCurrenciesQuery();
   const [amount, setAmount] = useState<number>(0);
   const [description, setDescription] = useState<string>('');
   const [currency, setCurrency] = useState<string>('usd');
@@ -19,7 +39,16 @@ export default function MakePaymentPage() {
   const { data: paymentMethodsData } = useGetPaymentMethodsQuery();
   const [createPaymentIntent, { isLoading: creating, error: createError }] = useCreatePaymentIntentMutation();
 
+  // Set currency from user preference when available
+  useEffect(() => {
+    if (user?.preferredCurrency) {
+      setCurrency(user.preferredCurrency);
+    }
+  }, [user]);
+
   const hasPaymentMethods = (paymentMethodsData?.paymentMethods?.length || 0) > 0;
+  const currencies = currenciesData?.currencies || [];
+  const currencySymbol = currencySymbols[currency] || '$';
 
   const handleCreatePayment = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -73,7 +102,7 @@ export default function MakePaymentPage() {
               <div className="bg-gray-50 rounded-lg p-4">
                 <div className="flex justify-between mb-2">
                   <span className="text-gray-600">Amount</span>
-                  <span className="font-medium">${amount.toFixed(2)} {currency.toUpperCase()}</span>
+                  <span className="font-medium">{currencySymbol}{amount.toFixed(2)} {currency.toUpperCase()}</span>
                 </div>
                 {description && (
                   <div className="flex justify-between">
@@ -136,12 +165,41 @@ export default function MakePaymentPage() {
 
         <form onSubmit={handleCreatePayment} className="bg-white rounded-lg shadow p-6">
           <div className="space-y-6">
+            {/* Currency Selection */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Currency
+              </label>
+              <div className="grid grid-cols-3 gap-2">
+                {currencies.map((curr: any) => (
+                  <button
+                    key={curr.code}
+                    type="button"
+                    onClick={() => setCurrency(curr.code.toLowerCase())}
+                    className={`p-3 border rounded-lg text-center transition-colors ${
+                      currency === curr.code.toLowerCase()
+                        ? 'border-blue-500 bg-blue-50'
+                        : 'border-gray-200 hover:bg-gray-50'
+                    }`}
+                  >
+                    <span className="text-lg mr-1">{currencyFlags[curr.code.toLowerCase()] || '💰'}</span>
+                    <span className="font-medium">{curr.code}</span>
+                  </button>
+                ))}
+              </div>
+              {user?.preferredCurrency && (
+                <p className="text-sm text-gray-500 mt-2">
+                  Using your preferred currency: {currency.toUpperCase()}
+                </p>
+              )}
+            </div>
+
             <div>
               <label htmlFor="amount" className="block text-sm font-medium text-gray-700 mb-2">
-                Amount ($)
+                Amount ({currencySymbol})
               </label>
               <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">$</span>
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">{currencySymbol}</span>
                 <input
                   type="number"
                   id="amount"
@@ -154,23 +212,7 @@ export default function MakePaymentPage() {
                   placeholder="0.00"
                 />
               </div>
-              <p className="text-sm text-gray-500 mt-1">Minimum: $0.50</p>
-            </div>
-
-            <div>
-              <label htmlFor="currency" className="block text-sm font-medium text-gray-700 mb-2">
-                Currency
-              </label>
-              <select
-                id="currency"
-                value={currency}
-                onChange={(e) => setCurrency(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              >
-                <option value="usd">USD - US Dollar</option>
-                <option value="eur">EUR - Euro</option>
-                <option value="gbp">GBP - British Pound</option>
-              </select>
+              <p className="text-sm text-gray-500 mt-1">Minimum: {currencySymbol}0.50</p>
             </div>
 
             <div>
@@ -193,7 +235,7 @@ export default function MakePaymentPage() {
               <div className="flex justify-between text-sm">
                 <span className="text-gray-600">Subtotal</span>
                 <span>
-                  {amount > 0 ? `$${amount.toFixed(2)}` : '-'} {currency.toUpperCase()}
+                  {amount > 0 ? `${currencySymbol}${amount.toFixed(2)}` : '-'} {currency.toUpperCase()}
                 </span>
               </div>
               <div className="flex justify-between text-sm mt-1">
@@ -204,7 +246,7 @@ export default function MakePaymentPage() {
               <div className="flex justify-between font-semibold">
                 <span>Total</span>
                 <span>
-                  {amount > 0 ? `$${amount.toFixed(2)}` : '-'} {currency.toUpperCase()}
+                  {amount > 0 ? `${currencySymbol}${amount.toFixed(2)}` : '-'} {currency.toUpperCase()}
                 </span>
               </div>
             </div>
