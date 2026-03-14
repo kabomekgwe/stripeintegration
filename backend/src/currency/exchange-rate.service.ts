@@ -1,4 +1,6 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
+import { InjectQueue } from '@nestjs/bull';
+import { Queue } from 'bull';
 import { StripeService } from '../stripe/stripe.service';
 import { RedisService } from '../redis/redis.service';
 
@@ -17,6 +19,7 @@ export class ExchangeRateService implements OnModuleInit {
   constructor(
     private readonly stripeService: StripeService,
     private readonly redisService: RedisService,
+    @InjectQueue('currency') private readonly currencyQueue: Queue,
   ) {}
 
   onModuleInit() {
@@ -63,5 +66,26 @@ export class ExchangeRateService implements OnModuleInit {
       return true;
     }
     return false;
+  }
+
+  async scheduleDailyRefresh(): Promise<void> {
+    // Remove existing repeatable jobs first
+    const existingJobs = await this.currencyQueue.getRepeatableJobs();
+    for (const job of existingJobs) {
+      if (job.id === 'daily-rate-refresh') {
+        await this.currencyQueue.removeRepeatableByKey(job.key);
+      }
+    }
+
+    const job = await this.currencyQueue.add('refresh-rates', {}, {
+      repeat: {
+        cron: '0 0 * * *', // Daily at midnight UTC
+      },
+      jobId: 'daily-rate-refresh',
+      removeOnComplete: 10,
+      removeOnFail: 5,
+    });
+    
+    this.logger.log(`Scheduled daily rate refresh from Stripe: ${job.id}`);
   }
 }
