@@ -129,7 +129,8 @@ export class SubscriptionService {
       },
     });
 
-    // Get client secret for confirmation
+    // Get client secret for initial payment (Stripe creates internal invoice for subscription)
+    // Note: This is for payment processing only - actual invoices are sent from our internal system
     const latestInvoice = stripeSub.latest_invoice as any;
     const paymentIntent = latestInvoice?.payment_intent;
     const clientSecret = paymentIntent?.client_secret;
@@ -381,10 +382,7 @@ export class SubscriptionService {
       );
     }
 
-    // Payment succeeded (invoice.paid)
-    if (stripeSub.status === 'active' && stripeSub.latest_invoice) {
-      // This is handled by invoice.paid webhook typically
-    }
+    // Note: Invoices are handled internally, not via Stripe invoicing
   }
 
   async handleStripeSubscriptionDeleted(stripeSub: any) {

@@ -103,7 +103,8 @@ export class UsageSubscriptionService {
       },
     });
 
-    // Get client secret if payment is required
+    // Get client secret for initial payment (Stripe creates internal invoice for subscription)
+    // Note: This is for payment processing only - actual invoices are sent from our internal system
     const latestInvoice = stripeSubscription.latest_invoice as Stripe.Invoice;
     const paymentIntent = latestInvoice?.payment_intent as Stripe.PaymentIntent;
     const clientSecret = paymentIntent?.client_secret || undefined;

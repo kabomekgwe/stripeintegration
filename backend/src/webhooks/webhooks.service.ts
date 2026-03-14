@@ -130,18 +130,6 @@ export class WebhooksService {
         );
         break;
 
-      case 'invoice.payment_succeeded':
-        await this.handleInvoicePaymentSucceeded(
-          event.data.object as Stripe.Invoice,
-        );
-        break;
-
-      case 'invoice.payment_failed':
-        await this.handleInvoicePaymentFailed(
-          event.data.object as Stripe.Invoice,
-        );
-        break;
-
       // Dispute events
       case 'charge.dispute.created':
         await this.handleDisputeCreated(
@@ -279,20 +267,6 @@ export class WebhooksService {
   ): Promise<void> {
     this.logger.log(`Subscription ${subscription.id} deleted`);
     await this.subscriptionService.handleStripeSubscriptionDeleted(subscription);
-  }
-
-  private async handleInvoicePaymentSucceeded(
-    invoice: Stripe.Invoice,
-  ): Promise<void> {
-    this.logger.log(`Invoice ${invoice.id} payment succeeded`);
-    // Additional invoice handling if needed
-  }
-
-  private async handleInvoicePaymentFailed(
-    invoice: Stripe.Invoice,
-  ): Promise<void> {
-    this.logger.error(`Invoice ${invoice.id} payment failed`);
-    // Retry logic or notification could go here
   }
 
   // ===== DASHBOARD METHODS =====

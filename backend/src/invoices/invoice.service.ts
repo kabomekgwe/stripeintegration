@@ -26,7 +26,6 @@ export interface InvoiceData {
   paymentStatus: string;
   paymentDate?: string;
   paymentMethod?: string;
-  stripeInvoiceUrl?: string;
 }
 
 @Injectable()
