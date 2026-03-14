@@ -12,6 +12,7 @@ A full-stack payment application with embedded Stripe integration, usage-based b
 - 🧾 PDF invoice generation
 - 🍎 Apple Pay & Google Pay support
 - 📅 Subscription tiers with recurring billing
+- 🏢 Stripe Customer Portal (self-service billing)
 - 📊 Usage-based monthly billing
 - 🐳 Docker Compose setup with PostgreSQL & Redis
 - 🔄 Webhook handling with idempotency
@@ -129,6 +130,10 @@ docker-compose exec backend npx prisma studio
 - `POST /tax/preview` - Preview tax for multiple items
 - `POST /tax/verify-id` - Verify VAT/GST tax ID
 - `GET /tax/settings` - Get tax settings
+
+### Customer Portal
+- `POST /customer-portal/session` - Create portal session (redirects to Stripe-hosted portal)
+- `GET /customer-portal/configuration` - Get portal configuration
 
 ### Admin (Requires ADMIN role)
 - `GET /admin/dashboard` - Get dashboard summary with metrics

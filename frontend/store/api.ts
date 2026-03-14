@@ -289,6 +289,14 @@ export const api = createApi({
       }),
       invalidatesTags: ['Subscriptions'],
     }),
+
+    // Customer Portal
+    createPortalSession: builder.mutation<{ url: string }, void>({
+      query: () => ({
+        url: '/customer-portal/session',
+        method: 'POST',
+      }),
+    }),
   }),
 });
 
@@ -335,4 +343,6 @@ export const {
   useCreateSubscriptionMutation,
   useUpdateSubscriptionMutation,
   useCancelSubscriptionMutation,
+  // Customer Portal
+  useCreatePortalSessionMutation,
 } = api;

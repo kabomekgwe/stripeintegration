@@ -15,6 +15,7 @@ import { InvoiceModule } from './invoices/invoice.module';
 import { TaxModule } from './tax/tax.module';
 import { AdminModule } from './admin/admin.module';
 import { SubscriptionModule } from './subscriptions/subscription.module';
+import { CustomerPortalModule } from './customer-portal/customer-portal.module';
 
 @Module({
   imports: [
@@ -37,6 +38,7 @@ import { SubscriptionModule } from './subscriptions/subscription.module';
     TaxModule,
     AdminModule,
     SubscriptionModule,
+    CustomerPortalModule,
   ],
 })
 export class AppModule {}
