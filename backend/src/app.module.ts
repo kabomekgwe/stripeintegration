@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { ScheduleModule } from '@nestjs/schedule';
+import { APP_GUARD } from '@nestjs/core';
 import { DatabaseModule } from './database/database.module';
 import { RedisModule } from './redis/redis.module';
 import { StripeModule } from './stripe/stripe.module';
@@ -21,6 +22,7 @@ import { PromoCodeModule } from './promo-codes/promo-code.module';
 import { UsageSubscriptionModule } from './usage-subscriptions/usage-subscription.module';
 import { DisputeModule } from './disputes/dispute.module';
 import { ConnectModule } from './connect/connect.module';
+import { ApiKeyGuard } from './common/guards/api-key.guard';
 
 @Module({
   imports: [
@@ -49,6 +51,12 @@ import { ConnectModule } from './connect/connect.module';
     UsageSubscriptionModule,
     DisputeModule,
     ConnectModule,
+  ],
+  providers: [
+    {
+      provide: APP_GUARD,
+      useClass: ApiKeyGuard,
+    },
   ],
 })
 export class AppModule {}
