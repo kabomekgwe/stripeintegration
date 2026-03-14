@@ -57,6 +57,12 @@ export function Navbar() {
               <Link href="/usage" className="text-gray-600 hover:text-gray-900">
                 Usage
               </Link>
+              <Link href="/disputes" className="text-gray-600 hover:text-gray-900">
+                Disputes
+              </Link>
+              <Link href="/connect" className="text-gray-600 hover:text-gray-900">
+                Seller
+              </Link>
               <Link
                 href="/settings"
                 className="text-gray-600 hover:text-gray-900"
