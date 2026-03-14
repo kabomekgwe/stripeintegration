@@ -254,16 +254,16 @@ export class CurrencyService {
   }
 
   /**
-   * Get currency from country code (for IP geolocation)
+   * Get currency from country code (ISO 3166-1 alpha-2)
    */
   getCurrencyFromCountry(countryCode: string): string {
     const countryToCurrency: Record<string, string> = {
       // North America
       'US': 'usd',
       'CA': 'cad',
+      'MX': 'mxn',
       // Europe
       'GB': 'gbp',
-      'UK': 'gbp',
       'DE': 'eur',
       'FR': 'eur',
       'IT': 'eur',
@@ -283,13 +283,74 @@ export class CurrencyService {
       'LV': 'eur',
       'LT': 'eur',
       'LU': 'eur',
+      'CH': 'chf',
+      'NO': 'nok',
+      'SE': 'sek',
+      'DK': 'dkk',
+      'PL': 'pln',
+      'CZ': 'czk',
+      'HU': 'huf',
+      'RO': 'ron',
+      'BG': 'bgn',
+      'HR': 'hrk',
+      'RS': 'rsd',
       // Asia-Pacific
       'JP': 'jpy',
       'AU': 'aud',
-      // Default
+      'NZ': 'nzd',
+      'SG': 'sgd',
+      'HK': 'hkd',
+      'KR': 'krw',
+      'CN': 'cny',
+      'IN': 'inr',
+      'TH': 'thb',
+      'MY': 'myr',
+      'ID': 'idr',
+      'PH': 'php',
+      'VN': 'vnd',
+      // Middle East
+      'AE': 'aed',
+      'SA': 'sar',
+      'IL': 'ils',
+      'QA': 'qar',
+      'KW': 'kwd',
+      'BH': 'bhd',
+      'OM': 'omr',
+      // Africa
+      'ZA': 'zar',
+      'EG': 'egp',
+      'NG': 'ngn',
+      'KE': 'kes',
+      'GH': 'ghs',
+      // South America
+      'BR': 'brl',
+      'AR': 'ars',
+      'CL': 'clp',
+      'CO': 'cop',
+      'PE': 'pen',
+      'UY': 'uyu',
     };
 
     return countryToCurrency[countryCode.toUpperCase()] || 'usd';
+  }
+
+  /**
+   * Suggest currency based on user country
+   */
+  suggestCurrencyForUser(countryCode?: string): { currency: string; source: string } {
+    if (!countryCode) {
+      return { currency: 'usd', source: 'default' };
+    }
+
+    const currency = this.getCurrencyFromCountry(countryCode);
+    const isSupported = this.isSupported(currency);
+    
+    if (isSupported) {
+      return { currency, source: 'country' };
+    }
+    
+    // If currency not supported, fallback to USD
+    return { currency: 'usd', source: 'default' };
   }
 
   /**
