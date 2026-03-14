@@ -297,3 +297,30 @@ To download an invoice:
 GET /invoices/payment/:id       # Download payment invoice (PDF)
 GET /invoices/usage/:id         # Download usage invoice (PDF)
 ```
+
+## Multi-Currency Support
+
+The system supports 6 currencies with automatic detection and user preferences:
+
+### Supported Currencies
+- **USD** 🇺🇸 - US Dollar (default)
+- **EUR** 🇪🇺 - Euro
+- **GBP** 🇬🇧 - British Pound
+- **CAD** 🇨🇦 - Canadian Dollar
+- **AUD** 🇦🇺 - Australian Dollar
+- **JPY** 🇯🇵 - Japanese Yen
+
+### Features
+- **Auto-detection**: Currency detected from user's IP location on first visit
+- **User preference**: Currency saved to user profile and used across sessions
+- **Quick switcher**: Change currency from navbar dropdown
+- **USD transparency**: USD equivalent shown for price transparency
+- **Exchange rates**: Real-time conversion with daily rate updates
+
+### API Endpoints
+```bash
+GET /currency                    # List supported currencies
+GET /currency/detect             # Detect currency from IP
+GET /currency/convert            # Convert between currencies
+PATCH /auth/preferred-currency   # Update user's currency preference
+```
