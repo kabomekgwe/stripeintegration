@@ -27,6 +27,7 @@ model User {
   payments              PaymentRecord[]
   usageRecords          UsageRecord[]
   subscriptions         Subscription[]
+  promoCodeUsages       PromoCodeUsage[]
 
   @@map("users")
 }
@@ -230,8 +231,51 @@ model Subscription {
   user                  User               @relation(fields: [userId], references: [id], onDelete: Cascade)
   plan                  Plan               @relation(fields: [planId], references: [id], onDelete: Cascade)
   price                 Price              @relation(fields: [priceId], references: [id], onDelete: Cascade)
+  promoCodeUsages       PromoCodeUsage[]
 
   @@index([userId, status])
   @@index([status])
   @@map("subscriptions")
+}
+
+// ==================== PROMO CODES ====================
+
+model PromoCode {
+  id                String          @id @default(cuid())
+  code              String          @unique
+  name              String
+  description       String?
+  stripeCouponId    String          @unique
+  stripePromoCodeId String          @unique
+  percentOff        Int?            // Percentage off (1-100)
+  amountOff         Int?            // Fixed amount off in cents
+  currency          String?         // Currency for amountOff
+  duration          String          // forever, once, repeating
+  durationInMonths  Int?            // For repeating duration
+  maxRedemptions    Int?
+  timesUsed         Int             @default(0)
+  redeemBy          DateTime?
+  isActive          Boolean         @default(true)
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+
+  usages            PromoCodeUsage[]
+
+  @@map("promo_codes")
+}
+
+model PromoCodeUsage {
+  id              String        @id @default(cuid())
+  promoCodeId     String
+  subscriptionId  String?
+  userId          String
+  createdAt       DateTime      @default(now())
+
+  promoCode       PromoCode     @relation(fields: [promoCodeId], references: [id], onDelete: Cascade)
+  subscription    Subscription? @relation(fields: [subscriptionId], references: [id])
+  user            User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([promoCodeId])
+  @@index([userId])
+  @@map("promo_code_usages")
 }

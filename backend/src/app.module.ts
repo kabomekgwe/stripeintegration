@@ -17,6 +17,7 @@ import { AdminModule } from './admin/admin.module';
 import { SubscriptionModule } from './subscriptions/subscription.module';
 import { CustomerPortalModule } from './customer-portal/customer-portal.module';
 import { CurrencyModule } from './currency/currency.module';
+import { PromoCodeModule } from './promo-codes/promo-code.module';
 
 @Module({
   imports: [
@@ -41,6 +42,7 @@ import { CurrencyModule } from './currency/currency.module';
     SubscriptionModule,
     CustomerPortalModule,
     CurrencyModule,
+    PromoCodeModule,
   ],
 })
 export class AppModule {}

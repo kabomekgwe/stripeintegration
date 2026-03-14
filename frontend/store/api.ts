@@ -361,6 +361,64 @@ export const api = createApi({
       query: ({ limit = 20 } = {}) => `/admin/webhooks/errors?limit=${limit}`,
       providesTags: ['AdminDashboard'],
     }),
+
+    // Promo Codes
+    validatePromoCode: builder.query<{
+      valid: boolean;
+      code?: string;
+      name?: string;
+      description?: string;
+      percentOff?: number;
+      amountOff?: number;
+      currency?: string;
+      duration?: string;
+      durationInMonths?: number;
+      error?: string;
+    }, string>({
+      query: (code) => `/promo-codes/validate/${code}`,
+    }),
+    getPromoCodes: builder.query<{
+      codes: any[];
+      total: number;
+    }, { active?: boolean; limit?: number; offset?: number }>({
+      query: ({ active, limit, offset } = {}) => {
+        const params = new URLSearchParams();
+        if (active !== undefined) params.append('active', active.toString());
+        if (limit) params.append('limit', limit.toString());
+        if (offset) params.append('offset', offset.toString());
+        return `/promo-codes?${params.toString()}`;
+      },
+    }),
+    createPromoCode: builder.mutation<any, {
+      code: string;
+      name: string;
+      description?: string;
+      percentOff?: number;
+      amountOff?: number;
+      currency?: string;
+      duration: 'forever' | 'once' | 'repeating';
+      durationInMonths?: number;
+      maxRedemptions?: number;
+      redeemBy?: Date;
+    }>({
+      query: (data) => ({
+        url: '/promo-codes',
+        method: 'POST',
+        body: data,
+      }),
+    }),
+    deactivatePromoCode: builder.mutation<{ message: string }, string>({
+      query: (id) => ({
+        url: `/promo-codes/${id}/deactivate`,
+        method: 'PATCH',
+      }),
+    }),
+    deletePromoCode: builder.mutation<{ message: string }, string>({
+      query: (id) => ({
+        url: `/promo-codes/${id}`,
+        method: 'DELETE',
+      }),
+    }),
   }),
 });
 
@@ -418,4 +476,10 @@ export const {
   useGetWebhookEventQuery,
   useRetryWebhookEventMutation,
   useGetWebhookErrorsQuery,
+  // Promo Codes
+  useValidatePromoCodeQuery,
+  useGetPromoCodesQuery,
+  useCreatePromoCodeMutation,
+  useDeactivatePromoCodeMutation,
+  useDeletePromoCodeMutation,
 } = api;

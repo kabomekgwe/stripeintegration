@@ -14,6 +14,7 @@ A full-stack payment application with embedded Stripe integration, usage-based b
 - 📅 Subscription tiers with recurring billing
 - 🏢 Stripe Customer Portal (self-service billing)
 - 💱 Multi-currency support (USD, EUR, GBP, CAD, AUD, JPY)
+- 🎟️ Promo codes & discounts
 - 📊 Usage-based monthly billing
 - 📡 Webhooks Dashboard (monitor delivery & retry)
 - 🐳 Docker Compose setup with PostgreSQL & Redis
@@ -141,6 +142,13 @@ docker-compose exec backend npx prisma studio
 - `GET /currency` - List supported currencies
 - `GET /currency/convert?amount=&from=&to=` - Convert amount between currencies
 - `GET /currency/exchange-rates?base=` - Get exchange rates
+
+### Promo Codes
+- `GET /promo-codes/validate/:code` - Validate a promo code (public)
+- `GET /promo-codes` - List promo codes (admin)
+- `POST /promo-codes` - Create promo code (admin)
+- `PATCH /promo-codes/:id/deactivate` - Deactivate promo code (admin)
+- `DELETE /promo-codes/:id` - Delete promo code (admin)
 
 ### Admin (Requires ADMIN role)
 - `GET /admin/dashboard` - Get dashboard summary with metrics
