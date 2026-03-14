@@ -14,25 +14,11 @@ import type {
   MonthlyBillingResult,
 } from '@/types';
 
-// Get token from localStorage
-const getToken = () => {
-  if (typeof window !== 'undefined') {
-    return localStorage.getItem('token');
-  }
-  return null;
-};
-
 export const api = createApi({
   reducerPath: 'api',
   baseQuery: fetchBaseQuery({
-    baseUrl: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001',
-    prepareHeaders: (headers) => {
-      const token = getToken();
-      if (token) {
-        headers.set('authorization', `Bearer ${token}`);
-      }
-      return headers;
-    },
+    baseUrl: '/api', // Use Next.js proxy
+    credentials: 'include', // Send cookies with requests
   }),
   tagTypes: ['User', 'PaymentMethods', 'Payments', 'Usage', 'BillingPreview', 'AdminDashboard', 'Subscriptions'],
   endpoints: (builder) => ({

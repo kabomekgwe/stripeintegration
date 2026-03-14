@@ -3,13 +3,11 @@ import type { User } from '@/types';
 
 interface AuthState {
   user: User | null;
-  token: string | null;
   isAuthenticated: boolean;
 }
 
 const initialState: AuthState = {
   user: null,
-  token: null,
   isAuthenticated: false,
 };
 
@@ -19,18 +17,14 @@ const authSlice = createSlice({
   reducers: {
     setCredentials: (
       state,
-      action: PayloadAction<{ user: User; accessToken: string }>,
+      action: PayloadAction<{ user: User }>,
     ) => {
       state.user = action.payload.user;
-      state.token = action.payload.accessToken;
       state.isAuthenticated = true;
-      localStorage.setItem('token', action.payload.accessToken);
     },
     clearCredentials: (state) => {
       state.user = null;
-      state.token = null;
       state.isAuthenticated = false;
-      localStorage.removeItem('token');
     },
     setUser: (state, action: PayloadAction<User>) => {
       state.user = action.payload;
