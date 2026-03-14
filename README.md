@@ -9,7 +9,7 @@ A full-stack payment application with embedded Stripe integration, usage-based b
 - ⚡ Make instant payments without redirects
 - 📧 Email notifications (receipts, billing, password reset)
 - 💰 Full & partial refunds
-- 🧾 PDF invoice generation
+- 🧾 PDF invoice generation (internal system, not Stripe)
 - 🍎 Apple Pay & Google Pay support
 - 📅 Subscription tiers with recurring billing
 - 📊 Usage-based subscriptions (metered billing)
@@ -282,3 +282,18 @@ Note: Digital wallets appear automatically based on:
 - Device/browser capability
 - Customer's saved payment methods
 - Your Stripe account's enabled payment methods
+
+## Invoicing
+
+This system uses **internal invoicing** (not Stripe's invoice system):
+
+- PDF invoices are generated locally using Puppeteer
+- Invoices are sent via email using Nodemailer
+- Invoice data is stored in the database
+- Stripe is only used for payment processing, not invoice delivery
+
+To download an invoice:
+```bash
+GET /invoices/payment/:id       # Download payment invoice (PDF)
+GET /invoices/usage/:id         # Download usage invoice (PDF)
+```
