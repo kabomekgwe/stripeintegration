@@ -5,6 +5,7 @@ import { StripeService } from '../stripe/stripe.service';
 import { RedisService } from '../redis/redis.service';
 import { SubscriptionService } from '../subscriptions/subscription.service';
 import { DisputeService } from '../disputes/dispute.service';
+import { ConnectService } from '../connect/connect.service';
 import Stripe from 'stripe';
 
 @Injectable()
@@ -18,6 +19,7 @@ export class WebhooksService {
     private readonly configService: ConfigService,
     private readonly subscriptionService: SubscriptionService,
     private readonly disputeService: DisputeService,
+    private readonly connectService: ConnectService,
   ) {}
 
   async processWebhook(payload: string | Buffer, signature: string): Promise<void> {
@@ -150,6 +152,13 @@ export class WebhooksService {
       case 'charge.dispute.updated':
         await this.handleDisputeUpdated(
           event.data.object as Stripe.Dispute,
+        );
+        break;
+
+      // Connect events
+      case 'account.updated':
+        await this.handleAccountUpdated(
+          event.data.object as Stripe.Account,
         );
         break;
 
@@ -423,5 +432,13 @@ export class WebhooksService {
     dispute: Stripe.Dispute,
   ): Promise<void> {
     await this.disputeService.handleDisputeUpdated(dispute);
+  }
+
+  // ===== CONNECT HANDLERS =====
+
+  private async handleAccountUpdated(
+    account: Stripe.Account,
+  ): Promise<void> {
+    await this.connectService.handleAccountUpdated(account);
   }
 }

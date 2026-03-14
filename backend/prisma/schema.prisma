@@ -29,6 +29,7 @@ model User {
   subscriptions         Subscription[]
   promoCodeUsages       PromoCodeUsage[]
   disputes              Dispute[]
+  connectedAccount      ConnectedAccount?
 
   @@map("users")
 }
@@ -309,4 +310,42 @@ model Dispute {
   @@index([status])
   @@index([createdAt])
   @@map("disputes")
+}
+
+// ==================== STRIPE CONNECT ====================
+
+model ConnectedAccount {
+  id                String          @id @default(cuid())
+  userId            String          @unique
+  stripeAccountId   String          @unique
+  email             String
+  country           String
+  businessType      String          // individual, company
+  status            String          @default("pending") // pending, active, rejected
+  chargesEnabled    Boolean         @default(false)
+  payoutsEnabled    Boolean         @default(false)
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+
+  user              User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transfers         Transfer[]
+
+  @@map("connected_accounts")
+}
+
+model Transfer {
+  id                String          @id @default(cuid())
+  stripeTransferId  String          @unique
+  connectedAccountId String
+  amount            Int             // in cents
+  currency          String
+  description       String?
+  status            String          @default("paid") // paid, reversed
+  reversedAt        DateTime?
+  createdAt         DateTime        @default(now())
+
+  connectedAccount  ConnectedAccount @relation(fields: [connectedAccountId], references: [id], onDelete: Cascade)
+
+  @@index([connectedAccountId])
+  @@map("transfers")
 }

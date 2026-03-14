@@ -19,6 +19,7 @@ A full-stack payment application with embedded Stripe integration, usage-based b
 - 📊 Usage-based monthly billing
 - 📡 Webhooks Dashboard (monitor delivery & retry)
 - ⚔️ Dispute handling (chargebacks)
+- 🏪 Stripe Connect (marketplace & platform payments)
 - 🐳 Docker Compose setup with PostgreSQL & Redis
 - 🔄 Webhook handling with idempotency
 - ⏱️ Rate limiting on payment endpoints
@@ -164,6 +165,16 @@ docker-compose exec backend npx prisma studio
 - `GET /disputes/:id` - Get dispute details
 - `POST /disputes/:id/evidence` - Submit dispute evidence (admin)
 - `POST /disputes/:id/close` - Close dispute manually (admin)
+
+### Stripe Connect (Marketplace)
+- `POST /connect/accounts` - Create connected account
+- `GET /connect/account` - Get connected account
+- `POST /connect/onboarding-link` - Create onboarding link
+- `POST /connect/login-link` - Create Express Dashboard login link
+- `POST /connect/direct-charge` - Create direct charge to connected account
+- `POST /connect/transfers` - Create transfer (admin)
+- `GET /connect/transfers/:connectedAccountId` - Get transfers
+- `GET /connect/platform-balance` - Get platform balance (admin)
 
 ### Admin (Requires ADMIN role)
 - `GET /admin/dashboard` - Get dashboard summary with metrics

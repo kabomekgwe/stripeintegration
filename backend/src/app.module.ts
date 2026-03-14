@@ -20,6 +20,7 @@ import { CurrencyModule } from './currency/currency.module';
 import { PromoCodeModule } from './promo-codes/promo-code.module';
 import { UsageSubscriptionModule } from './usage-subscriptions/usage-subscription.module';
 import { DisputeModule } from './disputes/dispute.module';
+import { ConnectModule } from './connect/connect.module';
 
 @Module({
   imports: [
@@ -47,6 +48,7 @@ import { DisputeModule } from './disputes/dispute.module';
     PromoCodeModule,
     UsageSubscriptionModule,
     DisputeModule,
+    ConnectModule,
   ],
 })
 export class AppModule {}
