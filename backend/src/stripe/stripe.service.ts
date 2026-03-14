@@ -219,4 +219,25 @@ export class StripeService {
   getStripe(): Stripe {
     return this.stripe;
   }
+
+  /**
+   * Get exchange rates from Stripe
+   * Returns rates relative to USD
+   */
+  async getExchangeRates(): Promise<Record<string, number>> {
+    // Stripe Exchange Rates API returns rates for all supported currencies
+    const response = await this.stripe.exchangeRates.list();
+    
+    const rates: Record<string, number> = {};
+    
+    // Convert Stripe's format to our format
+    for (const rate of response.data) {
+      rates[rate.id.toLowerCase()] = rate.rate;
+    }
+    
+    // Ensure USD is 1.0 (base currency)
+    rates['usd'] = 1.0;
+    
+    return rates;
+  }
 }

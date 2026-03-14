@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { ExchangeRateService } from './exchange-rate.service';
 
 export interface CurrencyConfig {
   code: string;
@@ -82,20 +83,50 @@ export class CurrencyService {
     }],
   ]);
 
-  constructor(private readonly configService: ConfigService) {
+  constructor(
+    private readonly configService: ConfigService,
+    private readonly exchangeRateService: ExchangeRateService,
+  ) {
     this.initializeExchangeRates();
   }
 
-  private initializeExchangeRates(): void {
-    // Base rates relative to USD (in a real app, fetch from an API)
-    // These are example rates - use a real exchange rate API in production
-    this.exchangeRates.set('usd', 1.0);
-    this.exchangeRates.set('eur', 0.85);
-    this.exchangeRates.set('gbp', 0.73);
-    this.exchangeRates.set('cad', 1.25);
-    this.exchangeRates.set('aud', 1.35);
-    this.exchangeRates.set('jpy', 110.0);
-    this.lastRateUpdate = new Date();
+  private async initializeExchangeRates(): Promise<void> {
+    // Try to get cached rates first
+    const cachedRates = await this.exchangeRateService.getCachedRates();
+
+    if (cachedRates) {
+      this.exchangeRates.clear();
+      for (const [code, rate] of Object.entries(cachedRates)) {
+        this.exchangeRates.set(code.toLowerCase(), rate);
+      }
+      this.lastRateUpdate = new Date();
+      this.logger.log('Loaded exchange rates from cache');
+      return;
+    }
+
+    // Fetch fresh rates from Stripe
+    const success = await this.exchangeRateService.refreshRates();
+
+    if (success) {
+      const freshRates = await this.exchangeRateService.getCachedRates();
+      if (freshRates) {
+        this.exchangeRates.clear();
+        for (const [code, rate] of Object.entries(freshRates)) {
+          this.exchangeRates.set(code.toLowerCase(), rate);
+        }
+        this.lastRateUpdate = new Date();
+      }
+    } else {
+      // Fallback to static rates
+      this.logger.warn('Using fallback exchange rates');
+      this.exchangeRates.set('usd', 1.0);
+      this.exchangeRates.set('eur', 0.85);
+      this.exchangeRates.set('gbp', 0.73);
+      this.exchangeRates.set('cad', 1.25);
+      this.exchangeRates.set('aud', 1.35);
+      this.exchangeRates.set('jpy', 110.0);
+      this.lastRateUpdate = new Date();
+    }
   }
 
   /**
