@@ -10,6 +10,7 @@ import {
   useGetPaymentMethodsQuery, 
   useGetMeQuery, 
   useGetCurrenciesQuery,
+  useDetectCurrencyQuery,
   useConvertCurrencyQuery,
   useUpdatePreferredCurrencyMutation,
 } from '@/store/api';
@@ -55,6 +56,11 @@ export default function MakePaymentPage() {
     { skip: amount <= 0 || currency === 'usd' }
   );
 
+  // Detect currency from IP (only when no user preference)
+  const { data: detectedCurrencyData } = useDetectCurrencyQuery(undefined, {
+    skip: !!user?.preferredCurrency || !!detectedCurrency,
+  });
+
   // Set currency from user preference when available
   useEffect(() => {
     if (user?.preferredCurrency) {
@@ -62,29 +68,17 @@ export default function MakePaymentPage() {
     }
   }, [user]);
 
-  // Detect currency from IP on first visit
+  // Handle detected currency from RTK Query
   useEffect(() => {
-    const detectCurrency = async () => {
-      // Only detect if user hasn't set a preference
-      if (!user?.preferredCurrency && !detectedCurrency) {
-        try {
-          const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/currency/detect`);
-          const data = await response.json();
-          if (data.suggestedCurrency && data.suggestedCurrency !== 'USD') {
-            setDetectedCurrency(data.suggestedCurrency.toLowerCase());
-            setCurrency(data.suggestedCurrency.toLowerCase());
-            setShowDetectionNotice(true);
-            // Auto-save detected currency as preference
-            await updateCurrency(data.suggestedCurrency.toLowerCase());
-          }
-        } catch (error) {
-          console.error('Failed to detect currency:', error);
-        }
-      }
-    };
-
-    detectCurrency();
-  }, [user, detectedCurrency, updateCurrency]);
+    if (detectedCurrencyData?.suggestedCurrency && detectedCurrencyData.suggestedCurrency !== 'USD') {
+      const detected = detectedCurrencyData.suggestedCurrency.toLowerCase();
+      setDetectedCurrency(detected);
+      setCurrency(detected);
+      setShowDetectionNotice(true);
+      // Auto-save detected currency as preference
+      updateCurrency(detected);
+    }
+  }, [detectedCurrencyData, updateCurrency]);
 
   const hasPaymentMethods = (paymentMethodsData?.paymentMethods?.length || 0) > 0;
   const currencies = currenciesData?.currencies || [];

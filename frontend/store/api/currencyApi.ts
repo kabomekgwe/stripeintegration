@@ -20,6 +20,20 @@ export const currencyApi = baseApi.injectEndpoints({
       query: () => '/currency',
     }),
 
+    detectCurrency: builder.query<{
+      ip: string;
+      country: string;
+      suggestedCurrency: string;
+      currency: {
+        code: string;
+        name: string;
+        symbol: string;
+      } | null;
+      note: string;
+    }, void>({
+      query: () => '/currency/detect',
+    }),
+
     convertCurrency: builder.query<{
       original: { amount: number; currency: string; formatted: string };
       converted: { amount: number; currency: string; formatted: string };
@@ -49,6 +63,7 @@ export const currencyApi = baseApi.injectEndpoints({
 
 export const {
   useGetCurrenciesQuery,
+  useDetectCurrencyQuery,
   useConvertCurrencyQuery,
   useValidatePromoCodeQuery,
 } = currencyApi;
