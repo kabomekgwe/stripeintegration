@@ -5,7 +5,14 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Navbar } from '@/components/Navbar';
 import { PaymentElementForm } from '@/components/stripe/PaymentElementForm';
-import { useCreatePaymentIntentMutation, useGetPaymentMethodsQuery, useGetMeQuery, useGetCurrenciesQuery } from '@/store/api';
+import { 
+  useCreatePaymentIntentMutation, 
+  useGetPaymentMethodsQuery, 
+  useGetMeQuery, 
+  useGetCurrenciesQuery,
+  useConvertCurrencyQuery,
+  useUpdatePreferredCurrencyMutation,
+} from '@/store/api';
 
 const currencySymbols: Record<string, string> = {
   usd: '$',
@@ -29,15 +36,24 @@ export default function MakePaymentPage() {
   const router = useRouter();
   const { data: user } = useGetMeQuery();
   const { data: currenciesData } = useGetCurrenciesQuery();
+  const [updateCurrency] = useUpdatePreferredCurrencyMutation();
   const [amount, setAmount] = useState<number>(0);
   const [description, setDescription] = useState<string>('');
   const [currency, setCurrency] = useState<string>('usd');
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [paymentIntentId, setPaymentIntentId] = useState<string>('');
   const [paymentCreated, setPaymentCreated] = useState(false);
+  const [detectedCurrency, setDetectedCurrency] = useState<string | null>(null);
+  const [showDetectionNotice, setShowDetectionNotice] = useState(false);
   
   const { data: paymentMethodsData } = useGetPaymentMethodsQuery();
   const [createPaymentIntent, { isLoading: creating, error: createError }] = useCreatePaymentIntentMutation();
+
+  // Get conversion for USD equivalent display
+  const { data: conversionData } = useConvertCurrencyQuery(
+    { amount: Math.round(amount * 100), from: currency, to: 'usd' },
+    { skip: amount <= 0 || currency === 'usd' }
+  );
 
   // Set currency from user preference when available
   useEffect(() => {
@@ -46,9 +62,36 @@ export default function MakePaymentPage() {
     }
   }, [user]);
 
+  // Detect currency from IP on first visit
+  useEffect(() => {
+    const detectCurrency = async () => {
+      // Only detect if user hasn't set a preference
+      if (!user?.preferredCurrency && !detectedCurrency) {
+        try {
+          const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/currency/detect`);
+          const data = await response.json();
+          if (data.suggestedCurrency && data.suggestedCurrency !== 'USD') {
+            setDetectedCurrency(data.suggestedCurrency.toLowerCase());
+            setCurrency(data.suggestedCurrency.toLowerCase());
+            setShowDetectionNotice(true);
+            // Auto-save detected currency as preference
+            await updateCurrency(data.suggestedCurrency.toLowerCase());
+          }
+        } catch (error) {
+          console.error('Failed to detect currency:', error);
+        }
+      }
+    };
+
+    detectCurrency();
+  }, [user, detectedCurrency, updateCurrency]);
+
   const hasPaymentMethods = (paymentMethodsData?.paymentMethods?.length || 0) > 0;
   const currencies = currenciesData?.currencies || [];
   const currencySymbol = currencySymbols[currency] || '$';
+  const usdEquivalent = conversionData?.converted?.amount 
+    ? (conversionData.converted.amount / 100).toFixed(2)
+    : null;
 
   const handleCreatePayment = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -78,6 +121,10 @@ export default function MakePaymentPage() {
     setPaymentCreated(false);
   };
 
+  const handleDismissDetection = () => {
+    setShowDetectionNotice(false);
+  };
+
   // Show payment form if clientSecret exists
   if (clientSecret) {
     return (
@@ -104,8 +151,14 @@ export default function MakePaymentPage() {
                   <span className="text-gray-600">Amount</span>
                   <span className="font-medium">{currencySymbol}{amount.toFixed(2)} {currency.toUpperCase()}</span>
                 </div>
+                {usdEquivalent && currency !== 'usd' && (
+                  <div className="flex justify-between text-sm text-gray-500">
+                    <span>≈ USD Equivalent</span>
+                    <span>${usdEquivalent}</span>
+                  </div>
+                )}
                 {description && (
-                  <div className="flex justify-between">
+                  <div className="flex justify-between mt-2">
                     <span className="text-gray-600">Description</span>
                     <span className="font-medium text-right max-w-[60%]">{description}</span>
                   </div>
@@ -142,6 +195,25 @@ export default function MakePaymentPage() {
         <p className="text-gray-600 mb-8">
           Enter the payment details below to process a one-time charge.
         </p>
+
+        {/* Currency Detection Notice */}
+        {showDetectionNotice && detectedCurrency && (
+          <div className="bg-blue-50 border border-blue-200 text-blue-800 px-4 py-3 rounded-lg mb-6 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className="text-lg">🌍</span>
+              <span>
+                We've detected you're in a region that uses {detectedCurrency.toUpperCase()}. 
+                Currency set to {currencyFlags[detectedCurrency]} {detectedCurrency.toUpperCase()}.
+              </span>
+            </div>
+            <button 
+              onClick={handleDismissDetection}
+              className="text-blue-600 hover:text-blue-800 text-sm"
+            >
+              Dismiss
+            </button>
+          </div>
+        )}
 
         {!hasPaymentMethods && (
           <div className="bg-yellow-50 border border-yellow-200 text-yellow-800 px-4 py-3 rounded-lg mb-6">
@@ -213,6 +285,13 @@ export default function MakePaymentPage() {
                 />
               </div>
               <p className="text-sm text-gray-500 mt-1">Minimum: {currencySymbol}0.50</p>
+              
+              {/* USD Equivalent Display */}
+              {amount > 0 && currency !== 'usd' && usdEquivalent && (
+                <p className="text-sm text-blue-600 mt-1">
+                  ≈ ${usdEquivalent} USD
+                </p>
+              )}
             </div>
 
             <div>
@@ -242,6 +321,15 @@ export default function MakePaymentPage() {
                 <span className="text-gray-600">Tax</span>
                 <span className="text-gray-500">Calculated at checkout</span>
               </div>
+              
+              {/* USD Equivalent in Summary */}
+              {amount > 0 && currency !== 'usd' && usdEquivalent && (
+                <div className="flex justify-between text-sm mt-1 text-blue-600">
+                  <span>≈ USD Equivalent</span>
+                  <span>${usdEquivalent}</span>
+                </div>
+              )}
+              
               <hr className="my-2 border-gray-200" />
               <div className="flex justify-between font-semibold">
                 <span>Total</span>
@@ -249,6 +337,14 @@ export default function MakePaymentPage() {
                   {amount > 0 ? `${currencySymbol}${amount.toFixed(2)}` : '-'} {currency.toUpperCase()}
                 </span>
               </div>
+              
+              {/* USD Total Equivalent */}
+              {amount > 0 && currency !== 'usd' && usdEquivalent && (
+                <div className="flex justify-between text-sm text-blue-600 mt-1">
+                  <span>≈</span>
+                  <span>${usdEquivalent} USD</span>
+                </div>
+              )}
             </div>
 
             <button
@@ -263,6 +359,11 @@ export default function MakePaymentPage() {
 
         <div className="mt-6 text-center text-sm text-gray-500">
           <p>🔒 Your payment is secured by Stripe encryption</p>
+          {currency !== 'usd' && (
+            <p className="mt-1 text-xs">
+              Exchange rates are approximate and updated daily
+            </p>
+          )}
         </div>
       </main>
     </div>

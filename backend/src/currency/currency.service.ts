@@ -223,6 +223,45 @@ export class CurrencyService {
   }
 
   /**
+   * Get currency from country code (for IP geolocation)
+   */
+  getCurrencyFromCountry(countryCode: string): string {
+    const countryToCurrency: Record<string, string> = {
+      // North America
+      'US': 'usd',
+      'CA': 'cad',
+      // Europe
+      'GB': 'gbp',
+      'UK': 'gbp',
+      'DE': 'eur',
+      'FR': 'eur',
+      'IT': 'eur',
+      'ES': 'eur',
+      'NL': 'eur',
+      'BE': 'eur',
+      'AT': 'eur',
+      'IE': 'eur',
+      'PT': 'eur',
+      'FI': 'eur',
+      'GR': 'eur',
+      'CY': 'eur',
+      'MT': 'eur',
+      'SK': 'eur',
+      'SI': 'eur',
+      'EE': 'eur',
+      'LV': 'eur',
+      'LT': 'eur',
+      'LU': 'eur',
+      // Asia-Pacific
+      'JP': 'jpy',
+      'AU': 'aud',
+      // Default
+    };
+
+    return countryToCurrency[countryCode.toUpperCase()] || 'usd';
+  }
+
+  /**
    * Get last rate update time
    */
   getLastRateUpdate(): Date | null {

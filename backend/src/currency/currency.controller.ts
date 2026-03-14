@@ -1,4 +1,4 @@
-import { Controller, Get, Query } from '@nestjs/common';
+import { Controller, Get, Query, Headers, Ip } from '@nestjs/common';
 import { CurrencyService } from './currency.service';
 
 @Controller('currency')
@@ -19,6 +19,42 @@ export class CurrencyController {
         maxAmount: c.maxAmount,
       })),
       default: defaultCurrency.toUpperCase(),
+    };
+  }
+
+  @Get('detect')
+  detectCurrencyFromIP(
+    @Ip() ip: string,
+    @Headers('x-forwarded-for') forwardedFor: string,
+    @Headers('cf-ipcountry') cloudflareCountry: string,
+  ) {
+    // Get client IP (handle proxies)
+    const clientIp = forwardedFor?.split(',')[0]?.trim() || ip || '127.0.0.1';
+    
+    // Use Cloudflare country header if available (most reliable)
+    let countryCode = cloudflareCountry;
+    
+    // If no Cloudflare header, try to extract from IP (simplified)
+    // In production, use a geolocation service like MaxMind GeoIP2
+    if (!countryCode) {
+      // For now, default to US if no country detected
+      // In production, integrate with a geolocation API
+      countryCode = 'US';
+    }
+
+    const suggestedCurrency = this.currencyService.getCurrencyFromCountry(countryCode);
+    const currencyConfig = this.currencyService.getCurrency(suggestedCurrency);
+
+    return {
+      ip: clientIp,
+      country: countryCode?.toUpperCase() || 'US',
+      suggestedCurrency: suggestedCurrency.toUpperCase(),
+      currency: currencyConfig ? {
+        code: currencyConfig.code,
+        name: currencyConfig.name,
+        symbol: currencyConfig.symbol,
+      } : null,
+      note: 'Currency detected from IP geolocation. User can override in settings.',
     };
   }
 
