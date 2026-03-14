@@ -41,6 +41,7 @@ export class UsersService {
         email: createUserDto.email,
         password: hashedPassword,
         name: createUserDto.name,
+        country: createUserDto.country,
         stripeCustomerId: stripeCustomer.id,
       },
     });
@@ -115,9 +116,10 @@ export class UsersService {
       email: user.email,
       name: user.name,
       role: user.role,
+      preferredCurrency: user.preferredCurrency || 'usd',
+      country: user.country,
       stripeCustomerId: user.stripeCustomerId,
       defaultPaymentMethodId: user.defaultPaymentMethodId,
-      preferredCurrency: user.preferredCurrency || 'usd',
       createdAt: user.createdAt,
       updatedAt: user.updatedAt,
     };

@@ -33,6 +33,7 @@ export class AuthService {
         email: registerDto.email,
         password: registerDto.password,
         name: registerDto.name,
+        country: registerDto.country,
       });
 
       const accessToken = await this.generateToken(user);

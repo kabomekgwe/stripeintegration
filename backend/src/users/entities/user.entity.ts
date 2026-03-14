@@ -3,9 +3,10 @@ export class UserEntity {
   email: string;
   name?: string;
   role: string;
+  preferredCurrency: string;
+  country?: string;  // ISO 3166-1 alpha-2 code
   stripeCustomerId?: string;
   defaultPaymentMethodId?: string;
-  preferredCurrency: string;
   createdAt: Date;
   updatedAt: Date;
 }

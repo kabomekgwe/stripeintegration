@@ -18,9 +18,10 @@ model User {
   password              String
   name                  String?
   role                  UserRole        @default(USER)
+  preferredCurrency     String          @default("usd")
+  country               String?         // ISO 3166-1 alpha-2 code (e.g., "US", "DE")
   stripeCustomerId      String?         @unique
   defaultPaymentMethodId String?
-  preferredCurrency     String          @default("usd")
   createdAt             DateTime        @default(now())
   updatedAt             DateTime        @updatedAt
 
