@@ -5,12 +5,17 @@ import type { PaymentMethod, SetupIntentResponse } from '@/types';
  * Payment Methods API
  *
  * Endpoints for managing saved payment methods (cards, bank accounts).
+ *
+ * Cache Strategy:
+ * - getPaymentMethods: 2 minutes (payment methods change when added/removed)
+ * - Mutations: no cache (actions)
  */
 export const paymentMethodsApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
     getPaymentMethods: builder.query<{ paymentMethods: PaymentMethod[] }, void>({
       query: () => '/payment-methods',
       providesTags: ['PaymentMethods'],
+      keepUnusedDataFor: 120, // Cache for 2 minutes
     }),
 
     createSetupIntent: builder.mutation<SetupIntentResponse, void>({
