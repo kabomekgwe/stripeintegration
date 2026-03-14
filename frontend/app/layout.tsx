@@ -11,6 +11,12 @@ const fontMono = Geist_Mono({
   variable: '--font-mono',
 });
 
+/**
+ * Root Layout - Server Component
+ * 
+ * This is a Server Component that wraps the application.
+ * Client-side providers (Redux) are loaded via StoreProvider.
+ */
 export default function RootLayout({
   children,
 }: Readonly<{
