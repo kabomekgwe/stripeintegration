@@ -18,6 +18,7 @@ import { SubscriptionModule } from './subscriptions/subscription.module';
 import { CustomerPortalModule } from './customer-portal/customer-portal.module';
 import { CurrencyModule } from './currency/currency.module';
 import { PromoCodeModule } from './promo-codes/promo-code.module';
+import { UsageSubscriptionModule } from './usage-subscriptions/usage-subscription.module';
 
 @Module({
   imports: [
@@ -43,6 +44,7 @@ import { PromoCodeModule } from './promo-codes/promo-code.module';
     CustomerPortalModule,
     CurrencyModule,
     PromoCodeModule,
+    UsageSubscriptionModule,
   ],
 })
 export class AppModule {}

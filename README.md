@@ -12,6 +12,7 @@ A full-stack payment application with embedded Stripe integration, usage-based b
 - 🧾 PDF invoice generation
 - 🍎 Apple Pay & Google Pay support
 - 📅 Subscription tiers with recurring billing
+- 📊 Usage-based subscriptions (metered billing)
 - 🏢 Stripe Customer Portal (self-service billing)
 - 💱 Multi-currency support (USD, EUR, GBP, CAD, AUD, JPY)
 - 🎟️ Promo codes & discounts
@@ -149,6 +150,11 @@ docker-compose exec backend npx prisma studio
 - `POST /promo-codes` - Create promo code (admin)
 - `PATCH /promo-codes/:id/deactivate` - Deactivate promo code (admin)
 - `DELETE /promo-codes/:id` - Delete promo code (admin)
+
+### Usage-Based Subscriptions (Metered Billing)
+- `POST /usage-subscriptions` - Create metered subscription
+- `POST /usage-subscriptions/:id/usage` - Record usage
+- `GET /usage-subscriptions/:id/usage-summary` - Get usage summary
 
 ### Admin (Requires ADMIN role)
 - `GET /admin/dashboard` - Get dashboard summary with metrics

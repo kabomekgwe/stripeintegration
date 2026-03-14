@@ -419,6 +419,37 @@ export const api = createApi({
         method: 'DELETE',
       }),
     }),
+
+    // Usage-Based Subscriptions (Metered Billing)
+    createUsageSubscription: builder.mutation<{
+      subscriptionId: string;
+      clientSecret?: string;
+    }, { priceId: string; paymentMethodId?: string }>({
+      query: (data) => ({
+        url: '/usage-subscriptions',
+        method: 'POST',
+        body: data,
+      }),
+      invalidatesTags: ['Subscriptions'],
+    }),
+    recordMeteredUsage: builder.mutation<void, {
+      subscriptionId: string;
+      quantity: number;
+      timestamp?: Date;
+    }>({
+      query: ({ subscriptionId, ...data }) => ({
+        url: `/usage-subscriptions/${subscriptionId}/usage`,
+        method: 'POST',
+        body: data,
+      }),
+    }),
+    getUsageSummary: builder.query<{
+      totalUsage: number;
+      currentPeriodStart: Date;
+      currentPeriodEnd: Date;
+    }, string>({
+      query: (subscriptionId) => `/usage-subscriptions/${subscriptionId}/usage-summary`,
+    }),
   }),
 });
 
@@ -482,4 +513,8 @@ export const {
   useCreatePromoCodeMutation,
   useDeactivatePromoCodeMutation,
   useDeletePromoCodeMutation,
+  // Usage-Based Subscriptions
+  useCreateUsageSubscriptionMutation,
+  useRecordMeteredUsageMutation,
+  useGetUsageSummaryQuery,
 } = api;
