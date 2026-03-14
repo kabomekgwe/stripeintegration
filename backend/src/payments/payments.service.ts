@@ -9,6 +9,7 @@ import { PaymentMethodsService } from '../payment-methods/payment-methods.servic
 import { RedisService } from '../redis/redis.service';
 import { MailService } from '../mail/mail.service';
 import { TaxService } from '../tax/tax.service';
+import { CurrencyService } from '../currency/currency.service';
 import { ConfigService } from '@nestjs/config';
 import { PaymentEntity } from './entities/payment.entity';
 import { CreateRefundDto } from './dto/create-refund.dto';
@@ -25,6 +26,7 @@ export class PaymentsService {
     private readonly mailService: MailService,
     private readonly configService: ConfigService,
     private readonly taxService: TaxService,
+    private readonly currencyService: CurrencyService,
   ) {}
 
   async createPaymentIntent(params: {
@@ -44,6 +46,15 @@ export class PaymentsService {
       };
     };
   }): Promise<{ clientSecret: string; paymentIntentId: string; taxAmount: number }> {
+    // Validate currency
+    const currencyValidation = this.currencyService.validateAmount(
+      params.amount,
+      params.currency,
+    );
+    if (!currencyValidation.valid) {
+      throw new BadRequestException(currencyValidation.error);
+    }
+
     // Determine payment method
     let paymentMethodStripeId: string | undefined;
 

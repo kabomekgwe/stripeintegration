@@ -16,6 +16,7 @@ import { TaxModule } from './tax/tax.module';
 import { AdminModule } from './admin/admin.module';
 import { SubscriptionModule } from './subscriptions/subscription.module';
 import { CustomerPortalModule } from './customer-portal/customer-portal.module';
+import { CurrencyModule } from './currency/currency.module';
 
 @Module({
   imports: [
@@ -39,6 +40,7 @@ import { CustomerPortalModule } from './customer-portal/customer-portal.module';
     AdminModule,
     SubscriptionModule,
     CustomerPortalModule,
+    CurrencyModule,
   ],
 })
 export class AppModule {}

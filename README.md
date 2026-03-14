@@ -13,6 +13,7 @@ A full-stack payment application with embedded Stripe integration, usage-based b
 - 🍎 Apple Pay & Google Pay support
 - 📅 Subscription tiers with recurring billing
 - 🏢 Stripe Customer Portal (self-service billing)
+- 💱 Multi-currency support (USD, EUR, GBP, CAD, AUD, JPY)
 - 📊 Usage-based monthly billing
 - 🐳 Docker Compose setup with PostgreSQL & Redis
 - 🔄 Webhook handling with idempotency
@@ -134,6 +135,11 @@ docker-compose exec backend npx prisma studio
 ### Customer Portal
 - `POST /customer-portal/session` - Create portal session (redirects to Stripe-hosted portal)
 - `GET /customer-portal/configuration` - Get portal configuration
+
+### Currency
+- `GET /currency` - List supported currencies
+- `GET /currency/convert?amount=&from=&to=` - Convert amount between currencies
+- `GET /currency/exchange-rates?base=` - Get exchange rates
 
 ### Admin (Requires ADMIN role)
 - `GET /admin/dashboard` - Get dashboard summary with metrics

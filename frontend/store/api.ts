@@ -297,6 +297,29 @@ export const api = createApi({
         method: 'POST',
       }),
     }),
+
+    // Currency
+    getCurrencies: builder.query<{
+      currencies: Array<{
+        code: string;
+        name: string;
+        symbol: string;
+        minAmount: number;
+        maxAmount: number;
+      }>;
+      default: string;
+    }, void>({
+      query: () => '/currency',
+    }),
+    convertCurrency: builder.query<{
+      original: { amount: number; currency: string; formatted: string };
+      converted: { amount: number; currency: string; formatted: string };
+      rate: number;
+      timestamp: string;
+    }, { amount: number; from: string; to: string }>({
+      query: ({ amount, from, to }) => 
+        `/currency/convert?amount=${amount}&from=${from}&to=${to}`,
+    }),
   }),
 });
 
@@ -345,4 +368,7 @@ export const {
   useCancelSubscriptionMutation,
   // Customer Portal
   useCreatePortalSessionMutation,
+  // Currency
+  useGetCurrenciesQuery,
+  useConvertCurrencyQuery,
 } = api;
