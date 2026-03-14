@@ -3,9 +3,10 @@ export interface User {
   email: string;
   name?: string;
   role: 'USER' | 'ADMIN';
+  preferredCurrency?: string;
+  country?: string;  // ISO 3166-1 alpha-2 code
   stripeCustomerId?: string;
   defaultPaymentMethodId?: string;
-  preferredCurrency?: string;
 }
 
 export interface PaymentMethod {

@@ -44,7 +44,7 @@ export const api = createApi({
         body: credentials,
       }),
     }),
-    register: builder.mutation<AuthResponse, { email: string; password: string; name?: string }>({
+    register: builder.mutation<AuthResponse, { email: string; password: string; name?: string; country?: string }>({
       query: (userData) => ({
         url: '/auth/register',
         method: 'POST',

@@ -7,10 +7,34 @@ import { useRegisterMutation } from '@/store/api';
 import { setCredentials } from '@/store/authSlice';
 import { useDispatch } from 'react-redux';
 
+const countries = [
+  { code: 'US', name: 'United States', flag: '🇺🇸' },
+  { code: 'CA', name: 'Canada', flag: '🇨🇦' },
+  { code: 'GB', name: 'United Kingdom', flag: '🇬🇧' },
+  { code: 'DE', name: 'Germany', flag: '🇩🇪' },
+  { code: 'FR', name: 'France', flag: '🇫🇷' },
+  { code: 'IT', name: 'Italy', flag: '🇮🇹' },
+  { code: 'ES', name: 'Spain', flag: '🇪🇸' },
+  { code: 'NL', name: 'Netherlands', flag: '🇳🇱' },
+  { code: 'AU', name: 'Australia', flag: '🇦🇺' },
+  { code: 'JP', name: 'Japan', flag: '🇯🇵' },
+  { code: 'MX', name: 'Mexico', flag: '🇲🇽' },
+  { code: 'BR', name: 'Brazil', flag: '🇧🇷' },
+  { code: 'SG', name: 'Singapore', flag: '🇸🇬' },
+  { code: 'HK', name: 'Hong Kong', flag: '🇭🇰' },
+  { code: 'NZ', name: 'New Zealand', flag: '🇳🇿' },
+  { code: 'CH', name: 'Switzerland', flag: '🇨🇭' },
+  { code: 'SE', name: 'Sweden', flag: '🇸🇪' },
+  { code: 'NO', name: 'Norway', flag: '🇳🇴' },
+  { code: 'DK', name: 'Denmark', flag: '🇩🇰' },
+  { code: 'IN', name: 'India', flag: '🇮🇳' },
+];
+
 export default function RegisterPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
+  const [country, setCountry] = useState('');
   const router = useRouter();
   const dispatch = useDispatch();
   
@@ -19,7 +43,12 @@ export default function RegisterPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const result = await register({ email, password, name }).unwrap();
+      const result = await register({ 
+        email, 
+        password, 
+        name: name || undefined,
+        country: country || undefined,
+      }).unwrap();
       dispatch(setCredentials(result));
       router.push('/dashboard');
     } catch (err) {
@@ -72,6 +101,28 @@ export default function RegisterPage() {
             minLength={8}
             className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none"
           />
+        </div>
+
+        <div>
+          <label htmlFor="country" className="block text-sm font-medium text-gray-700 mb-1">
+            Country (Optional)
+          </label>
+          <select
+            id="country"
+            value={country}
+            onChange={(e) => setCountry(e.target.value)}
+            className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none bg-white"
+          >
+            <option value="">Select your country</option>
+            {countries.map((c) => (
+              <option key={c.code} value={c.code}>
+                {c.flag} {c.name}
+              </option>
+            ))}
+          </select>
+          <p className="text-sm text-gray-500 mt-1">
+            We'll suggest the best currency for your region
+          </p>
         </div>
 
         {error && (
