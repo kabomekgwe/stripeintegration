@@ -270,4 +270,129 @@ export class WebhooksService {
     this.logger.error(`Invoice ${invoice.id} payment failed`);
     // Retry logic or notification could go here
   }
+
+  // ===== DASHBOARD METHODS =====
+
+  async getWebhookStats(): Promise<{
+    total: number;
+    processed: number;
+    failed: number;
+    pending: number;
+    byType: Record<string, number>;
+  }> {
+    const [
+      total,
+      processed,
+      failed,
+      byType,
+    ] = await Promise.all([
+      this.prisma.webhookEvent.count(),
+      this.prisma.webhookEvent.count({ where: { processed: true } }),
+      this.prisma.webhookEvent.count({ where: { error: { not: null } } }),
+      this.prisma.webhookEvent.groupBy({
+        by: ['type'],
+        _count: { type: true },
+      }),
+    ]);
+
+    const byTypeMap: Record<string, number> = {};
+    byType.forEach((item) => {
+      byTypeMap[item.type] = item._count.type;
+    });
+
+    return {
+      total,
+      processed,
+      failed,
+      pending: total - processed,
+      byType: byTypeMap,
+    };
+  }
+
+  async getWebhookEvents(params: {
+    limit?: number;
+    offset?: number;
+    processed?: boolean;
+    failed?: boolean;
+    type?: string;
+  }): Promise<{
+    events: any[];
+    total: number;
+  }> {
+    const { limit = 50, offset = 0, processed, failed, type } = params;
+
+    const where: any = {};
+    
+    if (processed !== undefined) {
+      where.processed = processed;
+    }
+    
+    if (failed) {
+      where.error = { not: null };
+    }
+    
+    if (type) {
+      where.type = type;
+    }
+
+    const [events, total] = await Promise.all([
+      this.prisma.webhookEvent.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        take: limit,
+        skip: offset,
+      }),
+      this.prisma.webhookEvent.count({ where }),
+    ]);
+
+    return { events, total };
+  }
+
+  async getWebhookEvent(id: string): Promise<any | null> {
+    return this.prisma.webhookEvent.findUnique({
+      where: { id },
+    });
+  }
+
+  async retryWebhookEvent(id: string): Promise<void> {
+    const event = await this.prisma.webhookEvent.findUnique({
+      where: { id },
+    });
+
+    if (!event) {
+      throw new Error('Webhook event not found');
+    }
+
+    if (event.processed) {
+      throw new Error('Webhook event already processed');
+    }
+
+    // Reset error and processed status
+    await this.prisma.webhookEvent.update({
+      where: { id },
+      data: {
+        error: null,
+        processed: false,
+        processedAt: null,
+      },
+    });
+
+    // Re-process the event
+    const stripeEvent = event.data as unknown as Stripe.Event;
+    await this.handleEvent(stripeEvent);
+
+    // Mark as processed
+    await this.prisma.webhookEvent.update({
+      where: { id },
+      data: { processed: true, processedAt: new Date() },
+    });
+  }
+
+  async getRecentErrors(limit: number = 20): Promise<any[]> {
+    return this.prisma.webhookEvent.findMany({
+      where: { error: { not: null } },
+      orderBy: { createdAt: 'desc' },
+      take: limit,
+    });
+  }
 }

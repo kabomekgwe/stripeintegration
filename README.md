@@ -15,6 +15,7 @@ A full-stack payment application with embedded Stripe integration, usage-based b
 - 🏢 Stripe Customer Portal (self-service billing)
 - 💱 Multi-currency support (USD, EUR, GBP, CAD, AUD, JPY)
 - 📊 Usage-based monthly billing
+- 📡 Webhooks Dashboard (monitor delivery & retry)
 - 🐳 Docker Compose setup with PostgreSQL & Redis
 - 🔄 Webhook handling with idempotency
 - ⏱️ Rate limiting on payment endpoints
@@ -150,6 +151,11 @@ docker-compose exec backend npx prisma studio
 - `GET /admin/users?page=&limit=&search=` - List users with search
 - `GET /admin/users/:id` - Get user details
 - `POST /admin/users/:id/suspend` - Suspend user
+- `GET /admin/webhooks/stats` - Webhook statistics
+- `GET /admin/webhooks/events` - List webhook events
+- `GET /admin/webhooks/events/:id` - Get webhook event details
+- `POST /admin/webhooks/events/:id/retry` - Retry failed webhook
+- `GET /admin/webhooks/errors` - Recent webhook errors
 
 ### Invoices
 - `GET /invoices/payment/:id` - Download payment invoice (PDF)

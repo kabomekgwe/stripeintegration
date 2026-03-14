@@ -320,6 +320,47 @@ export const api = createApi({
       query: ({ amount, from, to }) => 
         `/currency/convert?amount=${amount}&from=${from}&to=${to}`,
     }),
+
+    // Admin Webhooks Dashboard
+    getWebhookStats: builder.query<{
+      total: number;
+      processed: number;
+      failed: number;
+      pending: number;
+      byType: Record<string, number>;
+    }, void>({
+      query: () => '/admin/webhooks/stats',
+      providesTags: ['AdminDashboard'],
+    }),
+    getWebhookEvents: builder.query<{
+      events: any[];
+      total: number;
+    }, { limit?: number; offset?: number; processed?: boolean; failed?: boolean; type?: string }>({
+      query: ({ limit = 50, offset = 0, processed, failed, type }) => {
+        const params = new URLSearchParams();
+        params.append('limit', limit.toString());
+        params.append('offset', offset.toString());
+        if (processed !== undefined) params.append('processed', processed.toString());
+        if (failed) params.append('failed', 'true');
+        if (type) params.append('type', type);
+        return `/admin/webhooks/events?${params.toString()}`;
+      },
+      providesTags: ['AdminDashboard'],
+    }),
+    getWebhookEvent: builder.query<{ event: any }, string>({
+      query: (id) => `/admin/webhooks/events/${id}`,
+    }),
+    retryWebhookEvent: builder.mutation<{ message: string }, string>({
+      query: (id) => ({
+        url: `/admin/webhooks/events/${id}/retry`,
+        method: 'POST',
+      }),
+      invalidatesTags: ['AdminDashboard'],
+    }),
+    getWebhookErrors: builder.query<{ errors: any[] }, { limit?: number }>({
+      query: ({ limit = 20 } = {}) => `/admin/webhooks/errors?limit=${limit}`,
+      providesTags: ['AdminDashboard'],
+    }),
   }),
 });
 
@@ -371,4 +412,10 @@ export const {
   // Currency
   useGetCurrenciesQuery,
   useConvertCurrencyQuery,
+  // Admin Webhooks
+  useGetWebhookStatsQuery,
+  useGetWebhookEventsQuery,
+  useGetWebhookEventQuery,
+  useRetryWebhookEventMutation,
+  useGetWebhookErrorsQuery,
 } = api;

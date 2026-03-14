@@ -8,6 +8,7 @@ import {
   Request,
 } from '@nestjs/common';
 import { AdminService } from './admin.service';
+import { WebhooksService } from '../webhooks/webhooks.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
@@ -16,7 +17,10 @@ import { Roles } from '../auth/decorators/roles.decorator';
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles('ADMIN')
 export class AdminController {
-  constructor(private readonly adminService: AdminService) {}
+  constructor(
+    private readonly adminService: AdminService,
+    private readonly webhooksService: WebhooksService,
+  ) {}
 
   @Get('dashboard')
   async getDashboard() {
@@ -77,5 +81,52 @@ export class AdminController {
   @Post('users/:id/suspend')
   async suspendUser(@Param('id') userId: string) {
     return this.adminService.suspendUser(userId);
+  }
+
+  // ===== WEBHOOK DASHBOARD =====
+
+  @Get('webhooks/stats')
+  async getWebhookStats() {
+    return this.webhooksService.getWebhookStats();
+  }
+
+  @Get('webhooks/events')
+  async getWebhookEvents(
+    @Query('limit') limit: string = '50',
+    @Query('offset') offset: string = '0',
+    @Query('processed') processed?: string,
+    @Query('failed') failed?: string,
+    @Query('type') type?: string,
+  ) {
+    return this.webhooksService.getWebhookEvents({
+      limit: parseInt(limit),
+      offset: parseInt(offset),
+      processed: processed !== undefined ? processed === 'true' : undefined,
+      failed: failed === 'true',
+      type,
+    });
+  }
+
+  @Get('webhooks/events/:id')
+  async getWebhookEvent(@Param('id') id: string) {
+    const event = await this.webhooksService.getWebhookEvent(id);
+    if (!event) {
+      return { error: 'Webhook event not found' };
+    }
+    return { event };
+  }
+
+  @Post('webhooks/events/:id/retry')
+  async retryWebhookEvent(@Param('id') id: string) {
+    await this.webhooksService.retryWebhookEvent(id);
+    return { message: 'Webhook event retried successfully' };
+  }
+
+  @Get('webhooks/errors')
+  async getRecentErrors(
+    @Query('limit') limit: string = '20',
+  ) {
+    const errors = await this.webhooksService.getRecentErrors(parseInt(limit));
+    return { errors };
   }
 }
