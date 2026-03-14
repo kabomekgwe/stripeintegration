@@ -322,5 +322,46 @@ The system supports 6 currencies with automatic detection and user preferences:
 GET /currency                    # List supported currencies
 GET /currency/detect             # Detect currency from IP
 GET /currency/convert            # Convert between currencies
+GET /currency/health             # Health check for exchange rates
 PATCH /auth/preferred-currency   # Update user's currency preference
+PATCH /auth/country              # Update user's country (auto-suggests currency)
+```
+
+## Production Configuration
+
+### Exchange Rates
+The system uses **Stripe's Exchange Rates API** for real-time rates:
+- Rates are cached in Redis for 1 hour
+- Daily background job refreshes rates at midnight UTC via Bull queue
+- Fallback to static rates if API is unavailable
+- No additional API key required (uses existing Stripe key)
+
+### Currency Detection
+Users select their **country** during registration or in settings:
+- Country is stored in user profile (ISO 3166-1 alpha-2 code)
+- System suggests currency based on country (50+ country mappings)
+- User can override the suggested currency
+- No IP geolocation or third-party services required
+
+Example country-to-currency mapping:
+- US → USD
+- DE → EUR
+- GB → GBP
+- JP → JPY
+- AU → AUD
+- CA → CAD
+
+### Health Monitoring
+```bash
+GET /currency/health
+```
+
+Response:
+```json
+{
+  "status": "healthy",
+  "lastUpdate": "2025-03-12T00:00:00.000Z",
+  "cachedCurrencies": 50,
+  "source": "Stripe Exchange Rates API"
+}
 ```
