@@ -13,8 +13,36 @@ import { CurrencyService } from '../currency/currency.service';
 import { ConfigService } from '@nestjs/config';
 import { PaymentEntity } from './entities/payment.entity';
 import { CreateRefundDto } from './dto/create-refund.dto';
-import { PaymentStatus, RefundStatus } from '@prisma/client';
+import { PaymentStatus, RefundStatus, Prisma } from '@prisma/client';
 import { v4 as uuidv4 } from 'uuid';
+import Stripe from 'stripe';
+
+interface RefundResult {
+  refund: {
+    id: string;
+    amount: number;
+    currency: string;
+    status: string;
+    createdAt: Date;
+  };
+  remainingRefundable: number;
+}
+
+interface RefundItem {
+  id: string;
+  amount: number;
+  currency: string;
+  status: RefundStatus;
+  reason: string | null;
+  description: string | null;
+  createdAt: Date;
+}
+
+interface RefundWithPayment extends RefundItem {
+  paymentId: string;
+}
+
+type StripeRefundReason = 'duplicate' | 'fraudulent' | 'requested_by_customer' | null;
 
 @Injectable()
 export class PaymentsService {
@@ -141,7 +169,7 @@ export class PaymentsService {
         taxRate: taxRate || null,
         taxDisplayName,
         currency: params.currency,
-        status: stripePi.status.toUpperCase() as any,
+        status: stripePi.status.toUpperCase() as PaymentStatus,
         paymentMethodId: params.paymentMethodId,
         description: params.description,
         metadata: stripePi.metadata,
@@ -294,7 +322,7 @@ export class PaymentsService {
     paymentId: string,
     userId: string,
     refundDto: { amount?: number; reason?: string; description?: string },
-  ): Promise<any> {
+  ): Promise<RefundResult> {
     // Get the payment record
     const record = await this.prisma.paymentRecord.findFirst({
       where: { id: paymentId, userId },
@@ -338,7 +366,7 @@ export class PaymentsService {
     const stripeRefund = await this.stripeService.createRefund({
       paymentIntentId: record.stripePaymentIntentId,
       amount: refundAmount,
-      reason: refundDto.reason as any,
+      reason: (refundDto.reason as StripeRefundReason) || undefined,
     });
 
     // Create refund record in database
@@ -348,7 +376,7 @@ export class PaymentsService {
         stripeRefundId: stripeRefund.id,
         amount: refundAmount,
         currency: record.currency,
-        status: (stripeRefund.status?.toUpperCase() || 'PENDING') as any,
+        status: (stripeRefund.status?.toUpperCase() || 'PENDING') as RefundStatus,
         reason: refundDto.reason,
         description: refundDto.description,
       },
@@ -372,7 +400,7 @@ export class PaymentsService {
         id: refund.id,
         amount: refundAmount,
         currency: record.currency,
-        status: stripeRefund.status,
+        status: stripeRefund.status ?? 'pending',
         createdAt: new Date(),
       },
       remainingRefundable: remainingAmount - refundAmount,
@@ -428,16 +456,28 @@ export class PaymentsService {
     }));
   }
 
-  private toEntity(payment: any): PaymentEntity {
+  private toEntity(payment: Prisma.PaymentRecordGetPayload<{
+    select: {
+      id: true;
+      stripePaymentIntentId: true;
+      amount: true;
+      currency: true;
+      status: true;
+      paymentMethodId: true;
+      description: true;
+      errorMessage: true;
+      createdAt: true;
+    };
+  }>): PaymentEntity {
     return {
       id: payment.id,
       stripePaymentIntentId: payment.stripePaymentIntentId,
       amount: payment.amount,
       currency: payment.currency,
       status: payment.status,
-      paymentMethodId: payment.paymentMethodId,
-      description: payment.description,
-      errorMessage: payment.errorMessage,
+      paymentMethodId: payment.paymentMethodId ?? undefined,
+      description: payment.description ?? undefined,
+      errorMessage: payment.errorMessage ?? undefined,
       createdAt: payment.createdAt,
     };
   }
