@@ -13,7 +13,7 @@ import { RegisterDto } from './dto/register.dto';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 import { UserEntity } from '../users/entities/user.entity';
-import { v4 as uuidv4 } from 'uuid';
+import { randomBytes } from 'crypto';
 import * as bcrypt from 'bcrypt';
 
 @Injectable()
@@ -105,8 +105,8 @@ export class AuthService {
       return;
     }
 
-    // Generate reset token
-    const resetToken = uuidv4();
+    // Generate reset token using cryptographically secure random bytes
+    const resetToken = randomBytes(32).toString('hex');
     const key = `password_reset:${resetToken}`;
     
     // Store in Redis with 1 hour expiration

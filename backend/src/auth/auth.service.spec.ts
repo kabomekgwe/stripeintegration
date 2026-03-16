@@ -399,7 +399,7 @@ describe('AuthService', () => {
       expect(mailService.sendPasswordReset).not.toHaveBeenCalled();
     });
 
-    it('should generate token with correct format', async () => {
+    it('should generate token with correct format using crypto.randomBytes', async () => {
       // Arrange
       const dto: ForgotPasswordDto = { email: 'test@example.com' };
       const mockUser = createUserFactory({ email: dto.email });
@@ -412,11 +412,8 @@ describe('AuthService', () => {
       // Assert
       const setCall = vi.mocked(redisService.set).mock.calls[0];
       const key = setCall[0] as string;
-      // Token should be password_reset: prefix followed by token
-      expect(key).toMatch(/^password_reset:/);
-      // Token portion should be non-empty
-      const token = key.replace('password_reset:', '');
-      expect(token.length).toBeGreaterThan(20);
+      // Token should be password_reset: prefix followed by 64 hex chars (32 bytes)
+      expect(key).toMatch(/^password_reset:[a-f0-9]{64}$/);
     });
   });
 
