@@ -11,7 +11,7 @@
 - [ ] **TEST-02**: Create test utilities (factories, mocks, fixtures)
 - [ ] **TEST-03**: Write unit tests for AuthService (80%+ coverage)
 - [x] **TEST-04**: Write unit tests for PaymentsService (80%+ coverage)
-- [ ] **TEST-05**: Write unit tests for SubscriptionsService (80%+ coverage)
+- [x] **TEST-05**: Write unit tests for SubscriptionsService (80%+ coverage)
 - [ ] **TEST-06**: Write unit tests for WebhooksService (80%+ coverage)
 - [ ] **TEST-07**: Set up test coverage reporting in CI
 - [ ] **TEST-08**: Add integration tests for critical API flows
@@ -35,10 +35,10 @@
 
 ### Type Safety (HIGH-01)
 
-- [ ] **TYPE-01**: Define interfaces for Stripe webhook events
-- [ ] **TYPE-02**: Replace `any` in webhooks.service.ts
-- [ ] **TYPE-03**: Replace `any` in payments.service.ts
-- [ ] **TYPE-04**: Replace `any` in subscriptions.service.ts
+- [x] **TYPE-01**: Define interfaces for Stripe webhook events
+- [x] **TYPE-02**: Replace `any` in webhooks.service.ts
+- [x] **TYPE-03**: Replace `any` in payments.service.ts
+- [x] **TYPE-04**: Replace `any` in subscriptions.service.ts
 - [ ] **TYPE-05**: Replace `any` in connect.service.ts
 - [ ] **TYPE-06**: Replace `any` in promo-code.service.ts
 - [ ] **TYPE-07**: Replace `any` in disputes.service.ts
@@ -54,7 +54,7 @@
 
 ### Bug Fixes (HIGH-04, MED-02)
 
-- [ ] **BUG-01**: Implement user suspension logic (currently stubbed)
+- [x] **BUG-01**: Implement user suspension logic (currently stubbed)
 - [ ] **BUG-02**: Fix tax calculation silent failure
 - [ ] **BUG-03**: Fix currency exchange error handling
 - [ ] **BUG-04**: Standardize error handling (Result pattern)
@@ -96,17 +96,17 @@
 | TEST-02 | Phase 1 | Pending |
 | TEST-03 | Phase 1 | Pending |
 | TEST-04 | Phase 2 | Complete |
-| TEST-05 | Phase 2 | Pending |
+| TEST-05 | Phase 2 | Complete |
 | TEST-06 | Phase 3 | Pending |
 | SEC-01 | Phase 1 | Pending |
 | SEC-02 | Phase 1 | Pending |
 | SEC-03 | Phase 1 | Pending |
 | OBS-01 | Phase 1 | Pending |
 | OBS-02 | Phase 1 | Pending |
-| TYPE-01 | Phase 2 | Pending |
-| TYPE-02 | Phase 2 | Pending |
+| TYPE-01 | Phase 2 | Complete |
+| TYPE-02 | Phase 2 | Complete |
 | PERF-01 | Phase 3 | Pending |
-| BUG-01 | Phase 2 | Pending |
+| BUG-01 | Phase 2 | Complete |
 
 **Coverage:**
 - v1 requirements: 32 total
