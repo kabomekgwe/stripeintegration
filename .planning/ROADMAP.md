@@ -28,13 +28,33 @@
 4. Health endpoints return 200/503 appropriately
 5. No UUID v4 used for security tokens
 
-**Key Tasks:**
-- Set up Vitest with coverage reporting
-- Create test utilities and factories
-- Write AuthService tests
-- Implement rate limiting middleware
-- Create health check endpoints
-- Replace UUID with crypto.randomBytes
+**Plans:** 3 plans in 3 waves
+
+**Wave Structure:**
+| Wave | Plans | Description |
+|------|-------|-------------|
+| 1 | 01-01 | Testing infrastructure (Vitest, factories, mocks) |
+| 2 | 01-02 | AuthService tests + UUID to crypto.randomBytes |
+| 3 | 01-03 | Rate limiting + Health endpoints |
+
+**Plan Details:**
+
+### 01-01: Testing Infrastructure
+- **Requirements:** TEST-01, TEST-02
+- **Files:** vitest.config.ts, test/setup.ts, test/factories/, test/mocks/
+- **Objective:** Set up Vitest with coverage reporting and create test utilities
+
+### 01-02: AuthService Tests + Security Fix
+- **Requirements:** TEST-03, SEC-03
+- **Files:** auth.service.spec.ts, auth.service.ts
+- **Objective:** Write AuthService tests (80%+ coverage) and replace UUID with crypto.randomBytes
+- **Depends on:** 01-01
+
+### 01-03: Rate Limiting + Health Endpoints
+- **Requirements:** SEC-01, SEC-02, OBS-01, OBS-02
+- **Files:** common/guards/rate-limit.guard.ts, common/middleware/, health/
+- **Objective:** Implement rate limiting (global + per-route) and health check endpoints
+- **Depends on:** 01-01
 
 ---
 
