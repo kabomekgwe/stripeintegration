@@ -7,6 +7,7 @@ import { PrismaService } from '../database/prisma.service';
 import { StripeService } from '../stripe/stripe.service';
 import { PaymentMethodsService } from '../payment-methods/payment-methods.service';
 import { RedisService } from '../redis/redis.service';
+import { CacheService } from '../cache/cache.service';
 import { MailService } from '../mail/mail.service';
 import { TaxService } from '../tax/tax.service';
 import { CurrencyService } from '../currency/currency.service';
@@ -17,7 +18,7 @@ import { PaymentStatus, RefundStatus, Prisma } from '@prisma/client';
 import { v4 as uuidv4 } from 'uuid';
 import Stripe from 'stripe';
 
-interface RefundResult {
+export interface RefundResult {
   refund: {
     id: string;
     amount: number;
@@ -51,6 +52,7 @@ export class PaymentsService {
     private readonly stripeService: StripeService,
     private readonly paymentMethodsService: PaymentMethodsService,
     private readonly redisService: RedisService,
+    private readonly cacheService: CacheService,
     private readonly mailService: MailService,
     private readonly configService: ConfigService,
     private readonly taxService: TaxService,
@@ -261,11 +263,23 @@ export class PaymentsService {
   }
 
   async findById(id: string, userId: string): Promise<PaymentEntity | null> {
+    // Try cache first
+    const cacheKey = this.cacheService.paymentKey(id);
+    const cached = await this.cacheService.get<PaymentEntity>(cacheKey);
+    if (cached) return cached;
+
     const payment = await this.prisma.paymentRecord.findFirst({
       where: { id, userId },
     });
 
-    return payment ? this.toEntity(payment) : null;
+    if (payment) {
+      const entity = this.toEntity(payment);
+      // Cache for 2 minutes (120 seconds)
+      await this.cacheService.set(cacheKey, entity, 120);
+      return entity;
+    }
+
+    return null;
   }
 
   async retryPayment(
