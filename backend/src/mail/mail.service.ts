@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../database/prisma.service';
 import * as nodemailer from 'nodemailer';
+import Mail = require('nodemailer/lib/mailer');
 import * as handlebars from 'handlebars';
 
 interface EmailData {
@@ -401,7 +402,7 @@ export class MailService {
     });
   }
 
-  private async sendWithAttachment(data: EmailData & { attachments?: nodemailer.Attachment[] }): Promise<void> {
+  private async sendWithAttachment(data: EmailData & { attachments?: Mail.Attachment[] }): Promise<void> {
     const mailOptions = {
       from: `"${this.fromName}" <${this.fromEmail}>`,
       to: data.to,
