@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../database/prisma.service';
 import { StripeService } from '../stripe/stripe.service';
+import { CacheService } from '../cache/cache.service';
 import { MailService } from '../mail/mail.service';
 import { SubscriptionStatus, PlanInterval, SubscriptionEntity, PlanEntity } from './entities/subscription.entity';
 import { CreateSubscriptionDto, UpdateSubscriptionDto, CancelSubscriptionDto } from './dto/create-subscription.dto';
@@ -32,6 +33,7 @@ export class SubscriptionService {
     private readonly prisma: PrismaService,
     private readonly stripeService: StripeService,
     private readonly mailService: MailService,
+    private readonly cacheService: CacheService,
   ) {}
 
   // ===== PLANS =====
@@ -52,6 +54,11 @@ export class SubscriptionService {
   }
 
   async getPlanById(planId: string): Promise<PlanWithPrices | null> {
+    // Try cache first
+    const cacheKey = `plan:${planId}`;
+    const cached = await this.cacheService.get<PlanWithPrices>(cacheKey);
+    if (cached) return cached;
+
     const plan = await this.prisma.plan.findUnique({
       where: { id: planId, isActive: true },
       include: {
@@ -61,7 +68,14 @@ export class SubscriptionService {
       },
     });
 
-    return plan as PlanWithPrices | null;
+    if (plan) {
+      const result = plan as PlanWithPrices;
+      // Cache for 5 minutes (300 seconds) - plans don't change often
+      await this.cacheService.set(cacheKey, result, 300);
+      return result;
+    }
+
+    return null;
   }
 
   // ===== SUBSCRIPTIONS =====
@@ -166,6 +180,11 @@ export class SubscriptionService {
   }
 
   async getUserSubscription(userId: string) {
+    // Try cache first
+    const cacheKey = `subscription:user:${userId}`;
+    const cached = await this.cacheService.get(cacheKey);
+    if (cached) return cached;
+
     const subscription = await this.prisma.subscription.findFirst({
       where: {
         userId,
@@ -177,6 +196,11 @@ export class SubscriptionService {
       },
       orderBy: { createdAt: 'desc' },
     });
+
+    if (subscription) {
+      // Cache for 1 minute (60 seconds) - subscription data changes frequently
+      await this.cacheService.set(cacheKey, subscription, 60);
+    }
 
     return subscription;
   }
