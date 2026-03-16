@@ -10,7 +10,7 @@
 - [ ] **TEST-01**: Set up Vitest testing framework in backend
 - [ ] **TEST-02**: Create test utilities (factories, mocks, fixtures)
 - [ ] **TEST-03**: Write unit tests for AuthService (80%+ coverage)
-- [ ] **TEST-04**: Write unit tests for PaymentsService (80%+ coverage)
+- [x] **TEST-04**: Write unit tests for PaymentsService (80%+ coverage)
 - [ ] **TEST-05**: Write unit tests for SubscriptionsService (80%+ coverage)
 - [ ] **TEST-06**: Write unit tests for WebhooksService (80%+ coverage)
 - [ ] **TEST-07**: Set up test coverage reporting in CI
@@ -95,7 +95,7 @@
 | TEST-01 | Phase 1 | Pending |
 | TEST-02 | Phase 1 | Pending |
 | TEST-03 | Phase 1 | Pending |
-| TEST-04 | Phase 2 | Pending |
+| TEST-04 | Phase 2 | Complete |
 | TEST-05 | Phase 2 | Pending |
 | TEST-06 | Phase 3 | Pending |
 | SEC-01 | Phase 1 | Pending |
