@@ -54,11 +54,13 @@
 - **Completed:** 2026-03-16
 - **Commits:** edccb61, a5d0c6e
 
-### 01-03: Rate Limiting + Health Endpoints
+### 01-03: Rate Limiting + Health Endpoints [COMPLETED]
 - **Requirements:** SEC-01, SEC-02, OBS-01, OBS-02
 - **Files:** common/guards/rate-limit.guard.ts, common/middleware/, health/
 - **Objective:** Implement rate limiting (global + per-route) and health check endpoints
 - **Depends on:** 01-01
+- **Completed:** 2026-03-16
+- **Commits:** c1edaba, d98bc92, fa71262, 7e9d1e1
 
 ---
 
@@ -135,11 +137,11 @@
 | TEST-01 | 1 | Completed |
 | TEST-02 | 1 | Completed |
 | TEST-03 | 1 | Completed |
-| SEC-01 | 1 | Pending |
-| SEC-02 | 1 | Pending |
+| SEC-01 | 1 | Completed |
+| SEC-02 | 1 | Completed |
 | SEC-03 | 1 | Completed |
-| OBS-01 | 1 | Pending |
-| OBS-02 | 1 | Pending |
+| OBS-01 | 1 | Completed |
+| OBS-02 | 1 | Completed |
 | TEST-04 | 2 | Pending |
 | TEST-05 | 2 | Pending |
 | TEST-06 | 3 | Pending |
