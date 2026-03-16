@@ -891,4 +891,494 @@ describe('PaymentsService', () => {
       expect(result).toEqual([]);
     });
   });
+
+  describe('Edge Cases - Currency Handling', () => {
+    it('should handle EUR currency', async () => {
+      // Arrange
+      const mockPaymentMethod = { id: 'pm-123', stripePmId: 'pm_stripe123' };
+      const mockStripePi = {
+        id: 'pi_test123',
+        client_secret: 'pi_test123_secret',
+        status: 'requires_confirmation',
+      };
+
+      vi.mocked(paymentMethodsService.getDefaultForUser).mockResolvedValue(mockPaymentMethod);
+      vi.mocked(stripeService.createPaymentIntent).mockResolvedValue(mockStripePi);
+      vi.mocked(prismaService.paymentRecord.create).mockResolvedValue({});
+      vi.mocked(redisService.checkIdempotency).mockResolvedValue({ exists: false });
+
+      // Act
+      const result = await paymentsService.createPaymentIntent({
+        userId: 'user-123',
+        stripeCustomerId: 'cus_test123',
+        amount: 5000,
+        currency: 'eur',
+        description: 'EUR payment',
+      });
+
+      // Assert
+      expect(result.clientSecret).toBe('pi_test123_secret');
+      expect(prismaService.paymentRecord.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ currency: 'eur' }),
+        }),
+      );
+    });
+
+    it('should handle GBP currency', async () => {
+      // Arrange
+      const mockPaymentMethod = { id: 'pm-123', stripePmId: 'pm_stripe123' };
+      const mockStripePi = {
+        id: 'pi_test123',
+        client_secret: 'pi_test123_secret',
+        status: 'requires_confirmation',
+      };
+
+      vi.mocked(paymentMethodsService.getDefaultForUser).mockResolvedValue(mockPaymentMethod);
+      vi.mocked(stripeService.createPaymentIntent).mockResolvedValue(mockStripePi);
+      vi.mocked(prismaService.paymentRecord.create).mockResolvedValue({});
+      vi.mocked(redisService.checkIdempotency).mockResolvedValue({ exists: false });
+
+      // Act
+      const result = await paymentsService.createPaymentIntent({
+        userId: 'user-123',
+        stripeCustomerId: 'cus_test123',
+        amount: 2500,
+        currency: 'gbp',
+        description: 'GBP payment',
+      });
+
+      // Assert
+      expect(result.clientSecret).toBe('pi_test123_secret');
+      expect(prismaService.paymentRecord.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ currency: 'gbp' }),
+        }),
+      );
+    });
+  });
+
+  describe('Edge Cases - Amount Validation', () => {
+    it('should handle minimum amount (1 cent)', async () => {
+      // Arrange
+      const mockPaymentMethod = { id: 'pm-123', stripePmId: 'pm_stripe123' };
+      const mockStripePi = {
+        id: 'pi_test123',
+        client_secret: 'pi_test123_secret',
+        status: 'requires_confirmation',
+      };
+
+      vi.mocked(paymentMethodsService.getDefaultForUser).mockResolvedValue(mockPaymentMethod);
+      vi.mocked(stripeService.createPaymentIntent).mockResolvedValue(mockStripePi);
+      vi.mocked(prismaService.paymentRecord.create).mockResolvedValue({});
+      vi.mocked(redisService.checkIdempotency).mockResolvedValue({ exists: false });
+
+      // Act
+      const result = await paymentsService.createPaymentIntent({
+        userId: 'user-123',
+        stripeCustomerId: 'cus_test123',
+        amount: 1,
+        currency: 'usd',
+        description: 'Minimum amount',
+      });
+
+      // Assert
+      expect(result.clientSecret).toBe('pi_test123_secret');
+      expect(stripeService.createPaymentIntent).toHaveBeenCalledWith(
+        expect.objectContaining({ amount: 1 }),
+      );
+    });
+
+    it('should handle large amounts', async () => {
+      // Arrange
+      const mockPaymentMethod = { id: 'pm-123', stripePmId: 'pm_stripe123' };
+      const mockStripePi = {
+        id: 'pi_test123',
+        client_secret: 'pi_test123_secret',
+        status: 'requires_confirmation',
+      };
+
+      vi.mocked(paymentMethodsService.getDefaultForUser).mockResolvedValue(mockPaymentMethod);
+      vi.mocked(stripeService.createPaymentIntent).mockResolvedValue(mockStripePi);
+      vi.mocked(prismaService.paymentRecord.create).mockResolvedValue({});
+      vi.mocked(redisService.checkIdempotency).mockResolvedValue({ exists: false });
+
+      // Act
+      const result = await paymentsService.createPaymentIntent({
+        userId: 'user-123',
+        stripeCustomerId: 'cus_test123',
+        amount: 99999999, // $999,999.99
+        currency: 'usd',
+        description: 'Large amount',
+      });
+
+      // Assert
+      expect(result.clientSecret).toBe('pi_test123_secret');
+      expect(stripeService.createPaymentIntent).toHaveBeenCalledWith(
+        expect.objectContaining({ amount: 99999999 }),
+      );
+    });
+  });
+
+  describe('Edge Cases - Tax Calculation', () => {
+    it('should handle tax calculation failure gracefully', async () => {
+      // Arrange
+      vi.mocked(taxService.isTaxEnabled).mockReturnValue(true);
+      vi.mocked(taxService.calculateTax).mockRejectedValue(new Error('Tax service unavailable'));
+
+      const mockPaymentMethod = { id: 'pm-123', stripePmId: 'pm_stripe123' };
+      const mockStripePi = {
+        id: 'pi_test123',
+        client_secret: 'pi_test123_secret',
+        status: 'requires_confirmation',
+      };
+
+      vi.mocked(paymentMethodsService.getDefaultForUser).mockResolvedValue(mockPaymentMethod);
+      vi.mocked(stripeService.createPaymentIntent).mockResolvedValue(mockStripePi);
+      vi.mocked(prismaService.paymentRecord.create).mockResolvedValue({});
+      vi.mocked(redisService.checkIdempotency).mockResolvedValue({ exists: false });
+
+      // Act - should not throw
+      const result = await paymentsService.createPaymentIntent({
+        userId: 'user-123',
+        stripeCustomerId: 'cus_test123',
+        amount: 1000,
+        currency: 'usd',
+        description: 'Payment with tax failure',
+        customerDetails: {
+          address: {
+            line1: '123 Test St',
+            postal_code: '12345',
+            country: 'US',
+          },
+        },
+      });
+
+      // Assert - payment should still succeed without tax
+      expect(result.taxAmount).toBe(0);
+      expect(stripeService.createPaymentIntent).toHaveBeenCalledWith(
+        expect.objectContaining({ amount: 1000 }),
+      );
+    });
+
+    it('should include tax details in metadata when tax is calculated', async () => {
+      // Arrange
+      vi.mocked(taxService.isTaxEnabled).mockReturnValue(true);
+      vi.mocked(taxService.calculateTax).mockResolvedValue({
+        taxAmount: 200,
+        taxRate: 0.2,
+        taxDisplayName: 'VAT',
+      });
+
+      const mockPaymentMethod = { id: 'pm-123', stripePmId: 'pm_stripe123' };
+      const mockStripePi = {
+        id: 'pi_test123',
+        client_secret: 'pi_test123_secret',
+        status: 'requires_confirmation',
+      };
+
+      vi.mocked(paymentMethodsService.getDefaultForUser).mockResolvedValue(mockPaymentMethod);
+      vi.mocked(stripeService.createPaymentIntent).mockResolvedValue(mockStripePi);
+      vi.mocked(prismaService.paymentRecord.create).mockResolvedValue({});
+      vi.mocked(redisService.checkIdempotency).mockResolvedValue({ exists: false });
+
+      // Act
+      await paymentsService.createPaymentIntent({
+        userId: 'user-123',
+        stripeCustomerId: 'cus_test123',
+        amount: 1000,
+        currency: 'usd',
+        description: 'Payment with tax',
+      });
+
+      // Assert
+      expect(stripeService.createPaymentIntent).toHaveBeenCalledWith(
+        expect.objectContaining({
+          metadata: expect.objectContaining({
+            taxAmount: '200',
+            taxRate: '0.2',
+          }),
+        }),
+      );
+    });
+  });
+
+  describe('Edge Cases - Payment Status Transitions', () => {
+    it('should handle canceled payment status', async () => {
+      // Arrange
+      const mockUser = createUserFactory();
+      const mockPaymentRecord = createPaymentRecordFactory({
+        userId: mockUser.id,
+        stripePaymentIntentId: 'pi_test123',
+        status: 'PENDING',
+      });
+
+      vi.mocked(prismaService.paymentRecord.findFirst).mockResolvedValue({
+        ...mockPaymentRecord,
+        user: mockUser,
+      });
+
+      const mockStripePi = {
+        id: 'pi_test123',
+        status: 'canceled',
+        last_payment_error: null,
+      };
+
+      vi.mocked(stripeService.retrievePaymentIntent).mockResolvedValue(mockStripePi);
+      vi.mocked(prismaService.paymentRecord.update).mockResolvedValue({
+        ...mockPaymentRecord,
+        status: 'CANCELED',
+      });
+
+      // Act
+      const result = await paymentsService.confirmPayment('pi_test123', mockUser.id);
+
+      // Assert
+      expect(result.status).toBe('CANCELED');
+    });
+
+    it('should handle requires_action payment status', async () => {
+      // Arrange
+      const mockUser = createUserFactory();
+      const mockPaymentRecord = createPaymentRecordFactory({
+        userId: mockUser.id,
+        stripePaymentIntentId: 'pi_test123',
+        status: 'PENDING',
+      });
+
+      vi.mocked(prismaService.paymentRecord.findFirst).mockResolvedValue({
+        ...mockPaymentRecord,
+        user: mockUser,
+      });
+
+      const mockStripePi = {
+        id: 'pi_test123',
+        status: 'requires_action',
+        last_payment_error: null,
+      };
+
+      vi.mocked(stripeService.retrievePaymentIntent).mockResolvedValue(mockStripePi);
+      vi.mocked(prismaService.paymentRecord.update).mockResolvedValue({
+        ...mockPaymentRecord,
+        status: 'REQUIRES_ACTION',
+      });
+
+      // Act
+      const result = await paymentsService.confirmPayment('pi_test123', mockUser.id);
+
+      // Assert
+      expect(result.status).toBe('REQUIRES_ACTION');
+    });
+  });
+
+  describe('Edge Cases - Refund Scenarios', () => {
+    it('should handle refund with reason and description', async () => {
+      // Arrange
+      const mockUser = createUserFactory();
+      const mockPaymentRecord = createPaymentRecordFactory({
+        userId: mockUser.id,
+        status: 'SUCCEEDED',
+        amount: 10000,
+      });
+
+      vi.mocked(prismaService.paymentRecord.findFirst).mockResolvedValue({
+        ...mockPaymentRecord,
+        user: mockUser,
+        refunds: [],
+      });
+
+      const mockStripeRefund = {
+        id: 're_test123',
+        status: 'succeeded',
+      };
+
+      vi.mocked(stripeService.createRefund).mockResolvedValue(mockStripeRefund);
+      vi.mocked(prismaService.refund.create).mockResolvedValue({
+        id: 'refund-123',
+        paymentId: mockPaymentRecord.id,
+        stripeRefundId: 're_test123',
+        amount: 5000,
+        currency: 'usd',
+        status: 'SUCCEEDED',
+        reason: 'requested_by_customer',
+        description: 'Customer requested refund',
+      });
+
+      // Act
+      const result = await paymentsService.createRefund(mockPaymentRecord.id, mockUser.id, {
+        amount: 50,
+        reason: 'requested_by_customer',
+        description: 'Customer requested refund',
+      });
+
+      // Assert
+      expect(stripeService.createRefund).toHaveBeenCalledWith({
+        paymentIntentId: mockPaymentRecord.stripePaymentIntentId,
+        amount: 5000,
+        reason: 'requested_by_customer',
+      });
+      // Note: The returned refund object doesn't include reason/description
+      // These are stored in the database via prisma.refund.create
+      expect(result.refund.id).toBe('refund-123');
+      expect(result.refund.amount).toBe(5000);
+    });
+
+    it('should handle multiple partial refunds', async () => {
+      // Arrange
+      const mockUser = createUserFactory();
+      const mockPaymentRecord = createPaymentRecordFactory({
+        userId: mockUser.id,
+        status: 'SUCCEEDED',
+        amount: 10000,
+      });
+
+      // First refund already exists
+      vi.mocked(prismaService.paymentRecord.findFirst).mockResolvedValue({
+        ...mockPaymentRecord,
+        user: mockUser,
+        refunds: [
+          { amount: 3000 }, // $30.00 already refunded
+          { amount: 2000 }, // $20.00 already refunded
+        ],
+      });
+
+      const mockStripeRefund = {
+        id: 're_test123',
+        status: 'succeeded',
+      };
+
+      vi.mocked(stripeService.createRefund).mockResolvedValue(mockStripeRefund);
+      vi.mocked(prismaService.refund.create).mockResolvedValue({
+        id: 'refund-123',
+        paymentId: mockPaymentRecord.id,
+        stripeRefundId: 're_test123',
+        amount: 2000,
+        currency: 'usd',
+        status: 'SUCCEEDED',
+      });
+
+      // Act - refund remaining $50.00
+      const result = await paymentsService.createRefund(mockPaymentRecord.id, mockUser.id, {
+        amount: 20,
+      });
+
+      // Assert
+      expect(result.refund.amount).toBe(2000);
+      expect(result.remainingRefundable).toBe(3000); // $30.00 remaining
+    });
+  });
+
+  describe('Edge Cases - Error Scenarios', () => {
+    it('should handle missing client_secret from Stripe', async () => {
+      // Arrange
+      const mockPaymentMethod = { id: 'pm-123', stripePmId: 'pm_stripe123' };
+      const mockStripePi = {
+        id: 'pi_test123',
+        client_secret: null, // Missing client secret
+        status: 'requires_confirmation',
+      };
+
+      vi.mocked(paymentMethodsService.getDefaultForUser).mockResolvedValue(mockPaymentMethod);
+      vi.mocked(stripeService.createPaymentIntent).mockResolvedValue(mockStripePi);
+      vi.mocked(prismaService.paymentRecord.create).mockResolvedValue({});
+      vi.mocked(redisService.checkIdempotency).mockResolvedValue({ exists: false });
+
+      // Act & Assert
+      await expect(
+        paymentsService.createPaymentIntent({
+          userId: 'user-123',
+          stripeCustomerId: 'cus_test123',
+          amount: 1000,
+          currency: 'usd',
+        }),
+      ).rejects.toThrow('Failed to create payment intent');
+    });
+
+    it('should handle database error during payment record creation', async () => {
+      // Arrange
+      const mockPaymentMethod = { id: 'pm-123', stripePmId: 'pm_stripe123' };
+      const mockStripePi = {
+        id: 'pi_test123',
+        client_secret: 'pi_test123_secret',
+        status: 'requires_confirmation',
+      };
+
+      vi.mocked(paymentMethodsService.getDefaultForUser).mockResolvedValue(mockPaymentMethod);
+      vi.mocked(stripeService.createPaymentIntent).mockResolvedValue(mockStripePi);
+      vi.mocked(prismaService.paymentRecord.create).mockRejectedValue(new Error('Database error'));
+      vi.mocked(redisService.checkIdempotency).mockResolvedValue({ exists: false });
+
+      // Act & Assert
+      await expect(
+        paymentsService.createPaymentIntent({
+          userId: 'user-123',
+          stripeCustomerId: 'cus_test123',
+          amount: 1000,
+          currency: 'usd',
+        }),
+      ).rejects.toThrow('Database error');
+    });
+
+    it('should handle Stripe refund failure', async () => {
+      // Arrange
+      const mockUser = createUserFactory();
+      const mockPaymentRecord = createPaymentRecordFactory({
+        userId: mockUser.id,
+        status: 'SUCCEEDED',
+        amount: 10000,
+      });
+
+      vi.mocked(prismaService.paymentRecord.findFirst).mockResolvedValue({
+        ...mockPaymentRecord,
+        user: mockUser,
+        refunds: [],
+      });
+
+      vi.mocked(stripeService.createRefund).mockRejectedValue(new Error('Refund failed'));
+
+      // Act & Assert
+      await expect(
+        paymentsService.createRefund(mockPaymentRecord.id, mockUser.id, {}),
+      ).rejects.toThrow('Refund failed');
+    });
+  });
+
+  describe('Edge Cases - User Data', () => {
+    it('should handle user without name in email', async () => {
+      // Arrange
+      const mockUser = createUserFactory({ name: '' });
+      const mockPaymentRecord = createPaymentRecordFactory({
+        userId: mockUser.id,
+        stripePaymentIntentId: 'pi_test123',
+        status: 'PENDING',
+      });
+
+      vi.mocked(prismaService.paymentRecord.findFirst).mockResolvedValue({
+        ...mockPaymentRecord,
+        user: mockUser,
+      });
+
+      const mockStripePi = {
+        id: 'pi_test123',
+        status: 'succeeded',
+        last_payment_error: null,
+      };
+
+      vi.mocked(stripeService.retrievePaymentIntent).mockResolvedValue(mockStripePi);
+      vi.mocked(prismaService.paymentRecord.update).mockResolvedValue({
+        ...mockPaymentRecord,
+        status: 'SUCCEEDED',
+      });
+
+      // Act
+      await paymentsService.confirmPayment('pi_test123', mockUser.id);
+
+      // Assert - should use email when name is not available
+      expect(mailService.sendPaymentReceipt).toHaveBeenCalledWith(
+        mockUser.email,
+        expect.any(Object),
+        mockUser.email, // Falls back to email when name is undefined
+      );
+    });
+  });
 });
