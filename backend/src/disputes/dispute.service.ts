@@ -3,6 +3,7 @@ import { PrismaService } from '../database/prisma.service';
 import { StripeService } from '../stripe/stripe.service';
 import { MailService } from '../mail/mail.service';
 import Stripe from 'stripe';
+import { Prisma } from '@prisma/client';
 import { DisputeEvidence } from './dto/dispute-evidence.dto';
 
 export type { DisputeEvidence };
@@ -124,7 +125,7 @@ export class DisputeService {
     }
 
     // Submit evidence to Stripe
-    const stripeEvidence: any = {};
+    const stripeEvidence: Stripe.DisputeUpdateParams.Evidence = {};
     if (evidence.productDescription) stripeEvidence.product_description = evidence.productDescription;
     if (evidence.customerCommunication) stripeEvidence.customer_communication = evidence.customerCommunication;
     if (evidence.refundPolicy) stripeEvidence.refund_policy = evidence.refundPolicy;
@@ -145,7 +146,7 @@ export class DisputeService {
       data: {
         evidenceSubmitted: true,
         evidenceSubmittedAt: new Date(),
-        evidence: evidence as any,
+        evidence: evidence as Prisma.InputJsonValue,
       },
     });
 
@@ -184,10 +185,15 @@ export class DisputeService {
     status?: string;
     limit?: number;
     offset?: number;
-  }): Promise<{ disputes: any[]; total: number }> {
+  }): Promise<{ disputes: Prisma.DisputeGetPayload<{
+    include: {
+      user: { select: { email: true; name: true } };
+      payment: { select: { amount: true; currency: true; createdAt: true } };
+    };
+  }>[]; total: number }> {
     const { userId, status, limit = 50, offset = 0 } = params;
 
-    const where: any = {};
+    const where: Prisma.DisputeWhereInput = {};
     if (userId) where.userId = userId;
     if (status) where.status = status;
 
@@ -208,7 +214,12 @@ export class DisputeService {
     return { disputes, total };
   }
 
-  async getDispute(id: string): Promise<any> {
+  async getDispute(id: string): Promise<Prisma.DisputeGetPayload<{
+    include: {
+      user: { select: { email: true; name: true } };
+      payment: true;
+    };
+  }>> {
     const dispute = await this.prisma.dispute.findUnique({
       where: { id },
       include: {

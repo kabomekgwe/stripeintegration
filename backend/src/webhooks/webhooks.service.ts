@@ -28,7 +28,7 @@ import {
 /**
  * Webhook event record from database
  */
-interface WebhookEventRecord {
+export interface WebhookEventRecord {
   id: string;
   stripeEventId: string;
   type: string;
@@ -42,7 +42,7 @@ interface WebhookEventRecord {
 /**
  * Webhook statistics result
  */
-interface WebhookStats {
+export interface WebhookStats {
   total: number;
   processed: number;
   failed: number;
@@ -53,7 +53,7 @@ interface WebhookStats {
 /**
  * Webhook events query result
  */
-interface WebhookEventsResult {
+export interface WebhookEventsResult {
   events: WebhookEventRecord[];
   total: number;
 }

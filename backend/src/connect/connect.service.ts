@@ -24,7 +24,7 @@ export class ConnectService {
   async createConnectedAccount(
     userId: string,
     dto: CreateConnectedAccountDto,
-  ): Promise<{ account: Stripe.Account; onboardingUrl?: string }> {
+  ): Promise<{ account: Awaited<ReturnType<typeof this.prisma.connectedAccount.create>>; onboardingUrl?: string }> {
     // Check if user already has a connected account
     const existing = await this.prisma.connectedAccount.findUnique({
       where: { userId },
@@ -121,7 +121,7 @@ export class ConnectService {
     stripeData: {
       chargesEnabled: boolean;
       payoutsEnabled: boolean;
-      requirements: Stripe.Account.Requirements | null;
+      requirements: Stripe.Account.Requirements | null | undefined;
     };
   }> {
     const account = await this.prisma.connectedAccount.findUnique({
@@ -249,7 +249,7 @@ export class ConnectService {
     };
   }
 
-  async createTransfer(dto: CreateTransferDto): Promise<Stripe.Transfer> {
+  async createTransfer(dto: CreateTransferDto): Promise<ReturnType<typeof this.prisma.transfer.create>> {
     const connectedAccount = await this.prisma.connectedAccount.findUnique({
       where: { id: dto.destinationAccountId },
     });

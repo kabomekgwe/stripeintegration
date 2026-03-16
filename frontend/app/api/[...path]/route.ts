@@ -5,13 +5,14 @@ const API_KEY = process.env.API_KEY;
 
 async function handler(
   request: NextRequest,
-  { params }: { params: { path: string[] } }
+  { params }: { params: Promise<{ path: string[] }> }
 ) {
-  const path = params.path.join('/');
+  const { path } = await params;
+  const pathString = path.join('/');
   const searchParams = request.nextUrl.searchParams;
   const queryString = searchParams.toString();
   
-  const url = `${API_BASE_URL}/${path}${queryString ? `?${queryString}` : ''}`;
+  const url = `${API_BASE_URL}/${pathString}${queryString ? `?${queryString}` : ''}`;
   
   // Get cookies from the incoming request
   const cookieHeader = request.headers.get('cookie') || '';

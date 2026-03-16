@@ -3,6 +3,8 @@ import { PrismaService } from '../database/prisma.service';
 import { StripeService } from '../stripe/stripe.service';
 import { RedisService } from '../redis/redis.service';
 import { CreatePromoCodeDto } from './dto/create-promo-code.dto';
+import Stripe from 'stripe';
+import { Prisma } from '@prisma/client';
 
 export type { CreatePromoCodeDto } from './dto/create-promo-code.dto';
 
@@ -29,7 +31,7 @@ export class PromoCodeService {
     private readonly redisService: RedisService,
   ) {}
 
-  async createPromoCode(dto: CreatePromoCodeDto): Promise<any> {
+  async createPromoCode(dto: CreatePromoCodeDto): Promise<ReturnType<typeof this.prisma.promoCode.create>> {
     // Validate code format
     if (!/^[A-Z0-9_-]{3,50}$/i.test(dto.code)) {
       throw new BadRequestException('Code must be 3-50 alphanumeric characters');
@@ -54,9 +56,9 @@ export class PromoCodeService {
     }
 
     // Create coupon in Stripe
-    const couponData: any = {
+    const couponData: Stripe.CouponCreateParams = {
       name: dto.name,
-      duration: dto.duration,
+      duration: dto.duration as Stripe.CouponCreateParams.Duration,
     };
 
     if (dto.percentOff) {
@@ -229,10 +231,21 @@ export class PromoCodeService {
     active?: boolean;
     limit?: number;
     offset?: number;
-  }): Promise<{ codes: any[]; total: number }> {
+  }): Promise<{ codes: Prisma.PromoCodeGetPayload<{
+    include: {
+      usages: {
+        include: {
+          user: { select: { email: true; name: true } };
+          subscription: { select: { status: true } };
+        };
+        take: 10;
+        orderBy: { createdAt: 'desc' };
+      };
+    };
+  }>[]; total: number }> {
     const { active, limit = 50, offset = 0 } = params;
 
-    const where: any = {};
+    const where: Prisma.PromoCodeWhereInput = {};
     if (active !== undefined) {
       where.isActive = active;
     }
@@ -243,6 +256,16 @@ export class PromoCodeService {
         orderBy: { createdAt: 'desc' },
         take: limit,
         skip: offset,
+        include: {
+          usages: {
+            include: {
+              user: { select: { email: true, name: true } },
+              subscription: { select: { status: true } },
+            },
+            take: 10,
+            orderBy: { createdAt: 'desc' },
+          },
+        },
       }),
       this.prisma.promoCode.count({ where }),
     ]);
@@ -250,7 +273,18 @@ export class PromoCodeService {
     return { codes, total };
   }
 
-  async getPromoCode(id: string): Promise<any> {
+  async getPromoCode(id: string): Promise<Prisma.PromoCodeGetPayload<{
+    include: {
+      usages: {
+        include: {
+          user: { select: { email: true; name: true } };
+          subscription: { select: { status: true } };
+        };
+        take: 10;
+        orderBy: { createdAt: 'desc' };
+      };
+    };
+  }>> {
     const promoCode = await this.prisma.promoCode.findUnique({
       where: { id },
       include: {
