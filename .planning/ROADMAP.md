@@ -106,6 +106,35 @@
 - Replace remaining `any` types
 - Fix tax calculation error handling
 
+**Plans:** 3 plans in 3 waves
+
+**Wave Structure:**
+| Wave | Plans | Description |
+|------|-------|-------------|
+| 1 | 03-01 | WebhooksService tests (TEST-06) |
+| 2 | 03-02 | Performance fixes - N+1 query + indexes (PERF-01-04) |
+| 3 | 03-03 | Type safety fixes (TYPE-05-08) |
+
+**Plan Details:**
+
+### 03-01: WebhooksService Tests [PLANNED]
+- **Requirements:** TEST-06
+- **Files:** webhooks/webhooks.service.spec.ts, test/factories/webhook-event.factory.ts
+- **Objective:** Write comprehensive unit tests for WebhooksService achieving 80%+ coverage
+- **Depends on:** None (can run parallel to Phase 2 completion)
+
+### 03-02: Performance Fixes [PLANNED]
+- **Requirements:** PERF-01, PERF-02, PERF-03, PERF-04
+- **Files:** admin/admin.service.ts, prisma/schema.prisma
+- **Objective:** Fix N+1 query in admin service and add database indexes for user, payment, and subscription queries
+- **Depends on:** 03-01
+
+### 03-03: Type Safety Fixes [PLANNED]
+- **Requirements:** TYPE-05, TYPE-06, TYPE-07, TYPE-08
+- **Files:** connect/connect.service.ts, promo-codes/promo-code.service.ts, disputes/dispute.service.ts, mail/mail.service.ts
+- **Objective:** Replace remaining 'any' types in connect, promo-code, and dispute services; fix null assertions in mail service
+- **Depends on:** 03-02
+
 ---
 
 ## Phase 4: Polish
