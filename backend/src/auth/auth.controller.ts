@@ -18,6 +18,7 @@ import { RegisterDto } from './dto/register.dto';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
+import { RateLimit } from '../common/decorators/rate-limit.decorator';
 import { UsersService } from '../users/users.service';
 import { CurrencyService } from '../currency/currency.service';
 import { ConfigService } from '@nestjs/config';
@@ -47,6 +48,7 @@ export class AuthController {
   }
 
   @Post('register')
+  @RateLimit(5, 60000) // 5 requests per minute
   @HttpCode(HttpStatus.CREATED)
   async register(@Body() registerDto: RegisterDto, @Res({ passthrough: true }) res: Response) {
     const result = await this.authService.register(registerDto);
@@ -62,6 +64,7 @@ export class AuthController {
   }
 
   @Post('login')
+  @RateLimit(5, 60000) // 5 requests per minute
   @HttpCode(HttpStatus.OK)
   async login(@Body() loginDto: LoginDto, @Res({ passthrough: true }) res: Response) {
     const result = await this.authService.login(loginDto);
@@ -109,6 +112,7 @@ export class AuthController {
   // ==================== PASSWORD RESET ====================
 
   @Post('forgot-password')
+  @RateLimit(5, 60000) // 5 requests per minute
   @HttpCode(HttpStatus.OK)
   async forgotPassword(@Body() dto: ForgotPasswordDto) {
     await this.authService.requestPasswordReset(dto);
@@ -116,6 +120,7 @@ export class AuthController {
   }
 
   @Post('reset-password')
+  @RateLimit(5, 60000) // 5 requests per minute
   @HttpCode(HttpStatus.OK)
   async resetPassword(@Body() dto: ResetPasswordDto) {
     await this.authService.resetPassword(dto);

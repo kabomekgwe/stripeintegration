@@ -13,6 +13,7 @@ import {
 import { PaymentsService } from './payments.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { PaymentRateLimitGuard } from './guards/rate-limit.guard';
+import { RateLimit } from '../common/decorators/rate-limit.decorator';
 import { CreatePaymentDto } from './dto/create-payment.dto';
 import { CreateRefundDto } from './dto/create-refund.dto';
 
@@ -79,6 +80,7 @@ export class PaymentsController {
   // ==================== REFUNDS ====================
 
   @Post(':id/refund')
+  @RateLimit(10, 60000) // 10 requests per minute
   @HttpCode(HttpStatus.OK)
   async createRefund(
     @Request() req,
