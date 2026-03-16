@@ -296,6 +296,7 @@ export class AdminService {
         }
       : {};
 
+    // Query users without payment includes to avoid N+1
     const [users, total] = await Promise.all([
       this.prisma.user.findMany({
         where,
@@ -306,31 +307,52 @@ export class AdminService {
           _count: {
             select: { payments: true },
           },
-          payments: {
-            where: { status: PaymentStatus.SUCCEEDED },
-            select: { amount: true, createdAt: true },
-            orderBy: { createdAt: 'desc' },
-            take: 1,
-          },
         },
       }),
       this.prisma.user.count({ where }),
     ]);
 
-    const userList: UserListItem[] = users.map((user) => {
-      const totalSpent = user.payments.reduce((sum, p) => sum + p.amount, 0);
-      
-      return {
-        id: user.id,
-        email: user.email,
-        name: user.name || undefined,
-        stripeCustomerId: user.stripeCustomerId || undefined,
-        createdAt: user.createdAt,
-        totalPayments: user._count.payments,
-        totalSpent,
-        lastPaymentAt: user.payments[0]?.createdAt,
-      };
+    const userIds = users.map((u) => u.id);
+
+    // Batch fetch payment totals using groupBy - single query for all users
+    const paymentTotals = await this.prisma.paymentRecord.groupBy({
+      by: ['userId'],
+      where: {
+        userId: { in: userIds },
+        status: PaymentStatus.SUCCEEDED,
+      },
+      _sum: { amount: true },
     });
+
+    // Batch fetch last payment dates - single query for all users
+    const lastPayments = await this.prisma.paymentRecord.findMany({
+      where: {
+        userId: { in: userIds },
+        status: PaymentStatus.SUCCEEDED,
+      },
+      select: { userId: true, createdAt: true },
+      orderBy: { createdAt: 'desc' },
+      distinct: ['userId'],
+    });
+
+    // Build lookup maps for efficient access
+    const totalSpentMap = new Map(
+      paymentTotals.map((pt) => [pt.userId, pt._sum.amount || 0]),
+    );
+    const lastPaymentMap = new Map(
+      lastPayments.map((lp) => [lp.userId, lp.createdAt]),
+    );
+
+    const userList: UserListItem[] = users.map((user) => ({
+      id: user.id,
+      email: user.email,
+      name: user.name || undefined,
+      stripeCustomerId: user.stripeCustomerId || undefined,
+      createdAt: user.createdAt,
+      totalPayments: user._count.payments,
+      totalSpent: totalSpentMap.get(user.id) || 0,
+      lastPaymentAt: lastPaymentMap.get(user.id),
+    }));
 
     return { users: userList, total };
   }
