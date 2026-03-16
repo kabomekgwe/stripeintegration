@@ -9,7 +9,7 @@
 | # | Phase | Goal | Requirements | Success Criteria |
 |---|-------|------|--------------|------------------|
 | 1 | Foundation | Testing infrastructure + critical security | TEST-01-03, SEC-01-03, OBS-01-02 | 5 |
-| 2 | 2/3 | In Progress|  | 5 |
+| 2 | Core Services | Type safety + test coverage | TEST-04-06, TYPE-01-04, BUG-01 | 5 |
 | 3 | Webhooks & Performance | Webhook tests + performance fixes | TEST-06, PERF-01-05, TYPE-05-08 | 5 |
 | 4 | Polish | Documentation + frontend tests + advanced | DOC-01-03, FTEST-01-03 | 3 |
 
@@ -142,13 +142,13 @@
 | SEC-03 | 1 | Completed |
 | OBS-01 | 1 | Completed |
 | OBS-02 | 1 | Completed |
-| TEST-04 | 2 | Pending |
-| TEST-05 | 2 | Pending |
+| TEST-04 | 2 | Completed |
+| TEST-05 | 2 | Completed |
 | TEST-06 | 3 | Pending |
-| TYPE-01 | 2 | Pending |
-| TYPE-02 | 2 | Pending |
-| TYPE-03 | 2 | Pending |
-| TYPE-04 | 2 | Pending |
+| TYPE-01 | 2 | Completed |
+| TYPE-02 | 2 | Completed |
+| TYPE-03 | 2 | Completed |
+| TYPE-04 | 2 | Completed |
 | TYPE-05 | 3 | Pending |
 | TYPE-06 | 3 | Pending |
 | TYPE-07 | 3 | Pending |
@@ -158,7 +158,7 @@
 | PERF-03 | 3 | Pending |
 | PERF-04 | 3 | Pending |
 | PERF-05 | 3 | Pending |
-| BUG-01 | 2 | Pending |
+| BUG-01 | 2 | Completed |
 | DOC-01 | 4 | Pending |
 | DOC-02 | 4 | Pending |
 | DOC-03 | 4 | Pending |
