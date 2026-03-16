@@ -6,6 +6,7 @@ import {
 import * as bcrypt from 'bcrypt';
 import { PrismaService } from '../database/prisma.service';
 import { StripeService } from '../stripe/stripe.service';
+import { CacheService } from '../cache/cache.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { SuspendUserDto, UnsuspendUserDto } from './dto/suspend-user.dto';
 import { UserEntity } from './entities/user.entity';
@@ -16,6 +17,7 @@ export class UsersService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly stripeService: StripeService,
+    private readonly cacheService: CacheService,
   ) {}
 
   async create(createUserDto: CreateUserDto): Promise<UserEntity> {
@@ -52,19 +54,50 @@ export class UsersService {
   }
 
   async findByEmail(email: string): Promise<UserEntity | null> {
+    // Try cache first (using email as part of key since we don't have ID yet)
+    const cacheKey = `user:email:${email}`;
+    const cached = await this.cacheService.get<UserEntity>(cacheKey);
+    if (cached) return cached;
+
     const user = await this.prisma.user.findUnique({
       where: { email },
     });
 
-    return user ? this.toEntity(user) : null;
+    if (user) {
+      const entity = this.toEntity(user);
+      // Cache for 5 minutes (300 seconds)
+      await this.cacheService.set(cacheKey, entity, 300);
+      // Also cache by ID for consistency
+      await this.cacheService.set(
+        this.cacheService.userKey(user.id),
+        entity,
+        300,
+      );
+      return entity;
+    }
+
+    return null;
   }
 
   async findById(id: string): Promise<UserEntity | null> {
+    // Try cache first
+    const cached = await this.cacheService.get<UserEntity>(
+      this.cacheService.userKey(id),
+    );
+    if (cached) return cached;
+
     const user = await this.prisma.user.findUnique({
       where: { id },
     });
 
-    return user ? this.toEntity(user) : null;
+    if (user) {
+      const entity = this.toEntity(user);
+      // Cache for 5 minutes (300 seconds)
+      await this.cacheService.set(this.cacheService.userKey(id), entity, 300);
+      return entity;
+    }
+
+    return null;
   }
 
   async updateDefaultPaymentMethod(
