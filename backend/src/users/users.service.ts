@@ -7,7 +7,9 @@ import * as bcrypt from 'bcrypt';
 import { PrismaService } from '../database/prisma.service';
 import { StripeService } from '../stripe/stripe.service';
 import { CreateUserDto } from './dto/create-user.dto';
+import { SuspendUserDto, UnsuspendUserDto } from './dto/suspend-user.dto';
 import { UserEntity } from './entities/user.entity';
+import { Prisma } from '@prisma/client';
 
 @Injectable()
 export class UsersService {
@@ -119,6 +121,98 @@ export class UsersService {
     return this.toEntity(user);
   }
 
+  // ==================== USER SUSPENSION ====================
+
+  async suspendUser(userId: string, dto: SuspendUserDto): Promise<UserEntity> {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    const suspensionExpiry = dto.duration
+      ? new Date(Date.now() + dto.duration * 24 * 60 * 60 * 1000)
+      : null;
+
+    const updatedUser = await this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        suspended: true,
+        suspendedAt: new Date(),
+        suspensionReason: dto.reason,
+        suspensionExpiry,
+      },
+    });
+
+    return this.toEntity(updatedUser);
+  }
+
+  async unsuspendUser(userId: string, dto: UnsuspendUserDto): Promise<UserEntity> {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    const updatedUser = await this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        suspended: false,
+        suspendedAt: null,
+        suspensionReason: null,
+        suspensionExpiry: null,
+      },
+    });
+
+    return this.toEntity(updatedUser);
+  }
+
+  async isUserSuspended(userId: string): Promise<boolean> {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        suspended: true,
+        suspensionExpiry: true,
+      },
+    });
+
+    if (!user || !user.suspended) {
+      return false;
+    }
+
+    // Check if suspension has expired
+    if (user.suspensionExpiry && user.suspensionExpiry < new Date()) {
+      // Auto-unsuspend
+      await this.prisma.user.update({
+        where: { id: userId },
+        data: {
+          suspended: false,
+          suspendedAt: null,
+          suspensionReason: null,
+          suspensionExpiry: null,
+        },
+      });
+      return false;
+    }
+
+    return true;
+  }
+
+  async getSuspendedUsers(): Promise<UserEntity[]> {
+    const users = await this.prisma.user.findMany({
+      where: {
+        suspended: true,
+      },
+      orderBy: { suspendedAt: 'desc' },
+    });
+
+    return users.map((user) => this.toEntity(user));
+  }
+
   private toEntity(user: any): UserEntity {
     return {
       id: user.id,
@@ -129,6 +223,10 @@ export class UsersService {
       country: user.country,
       stripeCustomerId: user.stripeCustomerId,
       defaultPaymentMethodId: user.defaultPaymentMethodId,
+      suspended: user.suspended,
+      suspendedAt: user.suspendedAt,
+      suspensionReason: user.suspensionReason,
+      suspensionExpiry: user.suspensionExpiry,
       createdAt: user.createdAt,
       updatedAt: user.updatedAt,
     };

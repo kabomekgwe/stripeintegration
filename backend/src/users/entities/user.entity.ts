@@ -9,4 +9,10 @@ export class UserEntity {
   defaultPaymentMethodId?: string;
   createdAt: Date;
   updatedAt: Date;
+
+  // Suspension fields
+  suspended?: boolean;
+  suspendedAt?: Date;
+  suspensionReason?: string;
+  suspensionExpiry?: Date | null;
 }
