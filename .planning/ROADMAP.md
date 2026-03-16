@@ -9,7 +9,7 @@
 | # | Phase | Goal | Requirements | Success Criteria |
 |---|-------|------|--------------|------------------|
 | 1 | Foundation | Testing infrastructure + critical security | TEST-01-03, SEC-01-03, OBS-01-02 | 5 |
-| 2 | 1/3 | In Progress|  | 5 |
+| 2 | 2/3 | In Progress|  | 5 |
 | 3 | Webhooks & Performance | Webhook tests + performance fixes | TEST-06, PERF-01-05, TYPE-05-08 | 5 |
 | 4 | Polish | Documentation + frontend tests + advanced | DOC-01-03, FTEST-01-03 | 3 |
 
