@@ -4,6 +4,7 @@ import { StripeService } from '../stripe/stripe.service';
 import { MailService } from '../mail/mail.service';
 import { SubscriptionStatus, PlanInterval, SubscriptionEntity, PlanEntity } from './entities/subscription.entity';
 import { CreateSubscriptionDto, UpdateSubscriptionDto, CancelSubscriptionDto } from './dto/create-subscription.dto';
+import Stripe from 'stripe';
 
 export interface PlanWithPrices {
   id: string;
@@ -131,8 +132,8 @@ export class SubscriptionService {
 
     // Get client secret for initial payment (Stripe creates internal invoice for subscription)
     // Note: This is for payment processing only - actual invoices are sent from our internal system
-    const latestInvoice = stripeSub.latest_invoice as any;
-    const paymentIntent = latestInvoice?.payment_intent;
+    const latestInvoice = stripeSub.latest_invoice as Stripe.Invoice | null;
+    const paymentIntent = latestInvoice?.payment_intent as Stripe.PaymentIntent | null | undefined;
     const clientSecret = paymentIntent?.client_secret;
 
     if (!clientSecret) {
@@ -317,7 +318,7 @@ export class SubscriptionService {
 
   // ===== WEBHOOK HANDLERS =====
 
-  async handleStripeSubscriptionUpdated(stripeSub: any) {
+  async handleStripeSubscriptionUpdated(stripeSub: Stripe.Subscription) {
     const subscription = await this.prisma.subscription.findUnique({
       where: { stripeSubscriptionId: stripeSub.id },
       include: { user: true, plan: true, price: true },
@@ -385,7 +386,7 @@ export class SubscriptionService {
     // Note: Invoices are handled internally, not via Stripe invoicing
   }
 
-  async handleStripeSubscriptionDeleted(stripeSub: any) {
+  async handleStripeSubscriptionDeleted(stripeSub: Stripe.Subscription) {
     const subscription = await this.prisma.subscription.findUnique({
       where: { stripeSubscriptionId: stripeSub.id },
     });
