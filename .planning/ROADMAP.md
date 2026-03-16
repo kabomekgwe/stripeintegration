@@ -46,11 +46,13 @@
 - **Completed:** 2026-03-16
 - **Commits:** 8dc7e9c, f447306
 
-### 01-02: AuthService Tests + Security Fix
+### 01-02: AuthService Tests + Security Fix [COMPLETED]
 - **Requirements:** TEST-03, SEC-03
 - **Files:** auth.service.spec.ts, auth.service.ts
 - **Objective:** Write AuthService tests (80%+ coverage) and replace UUID with crypto.randomBytes
 - **Depends on:** 01-01
+- **Completed:** 2026-03-16
+- **Commits:** edccb61, a5d0c6e
 
 ### 01-03: Rate Limiting + Health Endpoints
 - **Requirements:** SEC-01, SEC-02, OBS-01, OBS-02
@@ -132,10 +134,10 @@
 |--------|-------|--------|
 | TEST-01 | 1 | Completed |
 | TEST-02 | 1 | Completed |
-| TEST-03 | 1 | Pending |
+| TEST-03 | 1 | Completed |
 | SEC-01 | 1 | Pending |
 | SEC-02 | 1 | Pending |
-| SEC-03 | 1 | Pending |
+| SEC-03 | 1 | Completed |
 | OBS-01 | 1 | Pending |
 | OBS-02 | 1 | Pending |
 | TEST-04 | 2 | Pending |

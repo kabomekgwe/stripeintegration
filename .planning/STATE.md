@@ -1,9 +1,9 @@
 # Project State: Stripe Platform Improvements
 
 **Current Phase:** 01-foundation
-**Current Plan:** 01-01
+**Current Plan:** 01-02
 **Last Updated:** 2026-03-16
-**Last Session:** Completed 01-01-PLAN.md
+**Last Session:** Completed 01-02-PLAN.md
 
 ## Project Reference
 
@@ -16,33 +16,31 @@ See: .planning/PROJECT.md (updated 2026-03-16)
 
 | Phase | Status | Progress | Blocked By |
 |-------|--------|----------|------------|
-| 1: Foundation | ○ In Progress | 25% | - |
+| 1: Foundation | ○ In Progress | 40% | - |
 | 2: Core Services | ○ Not Started | 0% | Phase 1 |
 | 3: Webhooks & Performance | ○ Not Started | 0% | Phase 2 |
 | 4: Polish | ○ Not Started | 0% | Phase 3 |
 
 ## Current Plan Progress
 
-**Plan:** 01-01 (Testing Infrastructure)
+**Plan:** 01-02 (AuthService Tests and Security Fix)
 **Status:** Completed
-**Summary:** Migrated from Jest to Vitest with 80% coverage thresholds, factories, and service mocks.
+**Summary:** Comprehensive AuthService unit tests with 100% coverage and security fix replacing UUID v4 with crypto.randomBytes for password reset tokens.
 
 ### Completed Tasks
-- [x] Task 1: Install Vitest and configure testing framework
-- [x] Task 2: Create test utilities and factories
+- [x] Task 1: Write AuthService unit tests (22 tests, 100% coverage)
+- [x] Task 2: Replace UUID with crypto.randomBytes for secure tokens
 
 ### Artifacts Created
-- `backend/vitest.config.ts` - Vitest configuration with coverage
-- `backend/test/setup.ts` - Test environment setup
-- `backend/test/factories/user.factory.ts` - User test data factory
-- `backend/test/mocks/redis.mock.ts` - Redis service mock
-- `backend/test/mocks/prisma.mock.ts` - Prisma service mock
+- `backend/src/auth/auth.service.spec.ts` - AuthService unit tests
+- Updated `backend/src/auth/auth.service.ts` - Secure token generation
 
 ## Decisions Made
 
 1. **Keep Jest for e2e tests**: Migrated unit tests to Vitest while keeping Jest for e2e tests to maintain backward compatibility.
 2. **Use unplugin-swc**: Required for NestJS decorator support with Vitest.
 3. **80% coverage thresholds**: Set consistent 80% thresholds for lines, functions, branches, and statements.
+4. **Mock bcrypt in tests**: Avoid native module compilation issues by mocking bcrypt.
 
 ## Current Blockers
 
@@ -50,6 +48,7 @@ None
 
 ## Recent Activity
 
+- 2026-03-16: Completed 01-02 - AuthService Tests and Security Fix
 - 2026-03-16: Completed 01-01 - Testing Infrastructure
 - 2026-03-16: Project initialized
 - 2026-03-16: Requirements defined
@@ -57,9 +56,8 @@ None
 
 ## Next Actions
 
-1. Execute 01-02: Implement rate limiting tests
-2. Execute 01-03: Create health endpoints
-3. Continue with remaining Phase 1 plans
+1. Execute 01-03: Create health endpoints
+2. Continue with remaining Phase 1 plans
 
 ## Notes
 
