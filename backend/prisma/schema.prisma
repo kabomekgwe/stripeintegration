@@ -37,6 +37,8 @@ model User {
   disputes              Dispute[]
   connectedAccount      ConnectedAccount?
 
+  @@index([createdAt])
+  @@index([suspended])
   @@map("users")
 }
 
@@ -84,6 +86,8 @@ model PaymentRecord {
   @@index([userId])
   @@index([status])
   @@index([createdAt])
+  @@index([userId, status])
+  @@index([createdAt, status])
   @@map("payment_records")
 }
 
@@ -147,6 +151,8 @@ model WebhookEvent {
 
   @@index([processed])
   @@index([type])
+  @@index([createdAt])
+  @@index([error])
   @@map("webhook_events")
 }
 
@@ -336,6 +342,9 @@ model ConnectedAccount {
   user              User            @relation(fields: [userId], references: [id], onDelete: Cascade)
   transfers         Transfer[]
 
+  @@index([userId])
+  @@index([stripeAccountId])
+  @@index([status])
   @@map("connected_accounts")
 }
 
