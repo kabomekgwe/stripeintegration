@@ -39,10 +39,12 @@
 
 **Plan Details:**
 
-### 01-01: Testing Infrastructure
+### 01-01: Testing Infrastructure [COMPLETED]
 - **Requirements:** TEST-01, TEST-02
 - **Files:** vitest.config.ts, test/setup.ts, test/factories/, test/mocks/
 - **Objective:** Set up Vitest with coverage reporting and create test utilities
+- **Completed:** 2026-03-16
+- **Commits:** 8dc7e9c, f447306
 
 ### 01-02: AuthService Tests + Security Fix
 - **Requirements:** TEST-03, SEC-03
@@ -128,8 +130,8 @@
 
 | Req ID | Phase | Status |
 |--------|-------|--------|
-| TEST-01 | 1 | Pending |
-| TEST-02 | 1 | Pending |
+| TEST-01 | 1 | Completed |
+| TEST-02 | 1 | Completed |
 | TEST-03 | 1 | Pending |
 | SEC-01 | 1 | Pending |
 | SEC-02 | 1 | Pending |
