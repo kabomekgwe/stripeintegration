@@ -64,6 +64,16 @@ export class AuthService {
       throw new UnauthorizedException('Invalid credentials');
     }
 
+    // Check if user is suspended
+    const isSuspended = await this.usersService.isUserSuspended(user.id);
+    if (isSuspended) {
+      throw new UnauthorizedException(
+        user.suspensionExpiry
+          ? `Account suspended until ${user.suspensionExpiry.toLocaleDateString()}. Reason: ${user.suspensionReason}`
+          : `Account suspended. Reason: ${user.suspensionReason}`,
+      );
+    }
+
     const isPasswordValid = await this.usersService.validatePassword(
       user,
       loginDto.password,
@@ -87,7 +97,18 @@ export class AuthService {
     const userId = await this.redisService.getSession(token);
     if (!userId) return null;
 
-    return this.usersService.findById(userId);
+    const user = await this.usersService.findById(userId);
+    if (!user) return null;
+
+    // Check if user is suspended
+    const isSuspended = await this.usersService.isUserSuspended(user.id);
+    if (isSuspended) {
+      // Revoke session for suspended user
+      await this.redisService.deleteSession(token);
+      return null;
+    }
+
+    return user;
   }
 
   private async generateToken(user: UserEntity): Promise<string> {
