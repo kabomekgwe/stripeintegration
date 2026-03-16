@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, MiddlewareConsumer } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { ScheduleModule } from '@nestjs/schedule';
 import { APP_GUARD } from '@nestjs/core';
@@ -23,6 +23,8 @@ import { UsageSubscriptionModule } from './usage-subscriptions/usage-subscriptio
 import { DisputeModule } from './disputes/dispute.module';
 import { ConnectModule } from './connect/connect.module';
 import { ApiKeyGuard } from './common/guards/api-key.guard';
+import { RateLimitGuard } from './common/guards/rate-limit.guard';
+import { GlobalRateLimitMiddleware } from './common/middleware/global-rate-limit.middleware';
 
 @Module({
   imports: [
@@ -57,6 +59,20 @@ import { ApiKeyGuard } from './common/guards/api-key.guard';
       provide: APP_GUARD,
       useClass: ApiKeyGuard,
     },
+    {
+      provide: APP_GUARD,
+      useClass: RateLimitGuard,
+    },
   ],
 })
-export class AppModule {}
+export class AppModule {
+  /**
+   * Configure global middleware.
+   * Applies rate limiting to all routes except health checks.
+   */
+  configure(consumer: MiddlewareConsumer): void {
+    consumer
+      .apply(GlobalRateLimitMiddleware)
+      .forRoutes('*');
+  }
+}
