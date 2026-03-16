@@ -282,7 +282,7 @@ export class ConnectService {
     return transferRecord;
   }
 
-  async getTransfers(connectedAccountId: string): Promise<any[]> {
+  async getTransfers(connectedAccountId: string): Promise<ReturnType<typeof this.prisma.transfer.findMany>> {
     const transfers = await this.prisma.transfer.findMany({
       where: { connectedAccountId },
       orderBy: { createdAt: 'desc' },

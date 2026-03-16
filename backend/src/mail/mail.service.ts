@@ -14,7 +14,7 @@ interface EmailData {
 @Injectable()
 export class MailService {
   private readonly logger = new Logger(MailService.name);
-  private readonly transporter: nodemailer.Transporter;
+  private readonly transporter: nodemailer.Transporter | null;
   private readonly fromEmail: string;
   private readonly fromName: string;
 
@@ -401,7 +401,7 @@ export class MailService {
     });
   }
 
-  private async sendWithAttachment(data: EmailData & { attachments?: any[] }): Promise<void> {
+  private async sendWithAttachment(data: EmailData & { attachments?: nodemailer.Attachment[] }): Promise<void> {
     const mailOptions = {
       from: `"${this.fromName}" <${this.fromEmail}>`,
       to: data.to,

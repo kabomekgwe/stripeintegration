@@ -129,10 +129,17 @@ export class DisputeService {
     if (evidence.productDescription) stripeEvidence.product_description = evidence.productDescription;
     if (evidence.customerCommunication) stripeEvidence.customer_communication = evidence.customerCommunication;
     if (evidence.refundPolicy) stripeEvidence.refund_policy = evidence.refundPolicy;
-    if (evidence.termsOfService) stripeEvidence.terms_of_service = evidence.termsOfService;
+    // Note: terms_of_service is not a valid Stripe dispute evidence field
+    // If provided, include it in uncategorized_text or handle appropriately
+    if (evidence.termsOfService) {
+      const existingText = evidence.uncategorizedText || '';
+      stripeEvidence.uncategorized_text = existingText
+        ? `${existingText}\n\nTerms of Service:\n${evidence.termsOfService}`
+        : `Terms of Service:\n${evidence.termsOfService}`;
+    }
     if (evidence.shippingDocumentation) stripeEvidence.shipping_documentation = evidence.shippingDocumentation;
     if (evidence.serviceDocumentation) stripeEvidence.service_documentation = evidence.serviceDocumentation;
-    if (evidence.uncategorizedText) stripeEvidence.uncategorized_text = evidence.uncategorizedText;
+    if (evidence.uncategorizedText && !evidence.termsOfService) stripeEvidence.uncategorized_text = evidence.uncategorizedText;
     if (evidence.receipt) stripeEvidence.receipt = evidence.receipt;
 
     await this.stripeService.getStripe().disputes.update(
@@ -219,7 +226,7 @@ export class DisputeService {
       user: { select: { email: true; name: true } };
       payment: true;
     };
-  }>> {
+  }> & { stripeData?: Stripe.Dispute }> {
     const dispute = await this.prisma.dispute.findUnique({
       where: { id },
       include: {
