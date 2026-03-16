@@ -343,14 +343,14 @@ export class WebhooksService {
     subscription: SubscriptionData,
   ): Promise<void> {
     this.logger.log(`Subscription ${subscription.id} updated`);
-    await this.subscriptionService.handleStripeSubscriptionUpdated(subscription);
+    await this.subscriptionService.handleStripeSubscriptionUpdated(subscription as unknown as Stripe.Subscription);
   }
 
   private async handleSubscriptionDeleted(
     subscription: SubscriptionData,
   ): Promise<void> {
     this.logger.log(`Subscription ${subscription.id} deleted`);
-    await this.subscriptionService.handleStripeSubscriptionDeleted(subscription);
+    await this.subscriptionService.handleStripeSubscriptionDeleted(subscription as unknown as Stripe.Subscription);
   }
 
   // ===== DISPUTE HANDLERS =====

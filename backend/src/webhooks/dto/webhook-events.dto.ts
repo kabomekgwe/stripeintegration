@@ -989,50 +989,57 @@ export type AccountHandler = WebhookHandler<AccountEvents>;
 // ============================================================================
 
 /**
+ * Base Stripe event interface for type guards
+ */
+interface BaseStripeEvent {
+  type: string;
+}
+
+/**
  * Type guard for payment intent events
  */
-export function isPaymentIntentEvent(event: StripeWebhookEvent): event is PaymentIntentEvents {
+export function isPaymentIntentEvent(event: BaseStripeEvent): event is PaymentIntentEvents {
   return event.type.startsWith('payment_intent.');
 }
 
 /**
  * Type guard for setup intent events
  */
-export function isSetupIntentEvent(event: StripeWebhookEvent): event is SetupIntentEvents {
+export function isSetupIntentEvent(event: BaseStripeEvent): event is SetupIntentEvents {
   return event.type.startsWith('setup_intent.');
 }
 
 /**
  * Type guard for subscription events
  */
-export function isSubscriptionEvent(event: StripeWebhookEvent): event is SubscriptionEvents {
+export function isSubscriptionEvent(event: BaseStripeEvent): event is SubscriptionEvents {
   return event.type.startsWith('customer.subscription.');
 }
 
 /**
  * Type guard for invoice events
  */
-export function isInvoiceEvent(event: StripeWebhookEvent): event is InvoiceEvents {
+export function isInvoiceEvent(event: BaseStripeEvent): event is InvoiceEvents {
   return event.type.startsWith('invoice.');
 }
 
 /**
  * Type guard for customer events
  */
-export function isCustomerEvent(event: StripeWebhookEvent): event is CustomerEvents {
+export function isCustomerEvent(event: BaseStripeEvent): event is CustomerEvents {
   return event.type.startsWith('customer.');
 }
 
 /**
  * Type guard for dispute events
  */
-export function isDisputeEvent(event: StripeWebhookEvent): event is DisputeEvents {
+export function isDisputeEvent(event: BaseStripeEvent): event is DisputeEvents {
   return event.type.startsWith('charge.dispute.');
 }
 
 /**
  * Type guard for account events
  */
-export function isAccountEvent(event: StripeWebhookEvent): event is AccountEvents {
+export function isAccountEvent(event: BaseStripeEvent): event is AccountEvents {
   return event.type.startsWith('account.');
 }
