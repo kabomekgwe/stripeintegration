@@ -1,0 +1,163 @@
+# Roadmap: Stripe Platform Improvements
+
+**Created:** 2026-03-16
+**Phases:** 4
+**Requirements:** 32 v1 requirements mapped
+
+## Phase Overview
+
+| # | Phase | Goal | Requirements | Success Criteria |
+|---|-------|------|--------------|------------------|
+| 1 | Foundation | Testing infrastructure + critical security | TEST-01-03, SEC-01-03, OBS-01-02 | 5 |
+| 2 | Core Services | Test coverage + type safety + bug fixes | TEST-04-06, TYPE-01-04, BUG-01 | 5 |
+| 3 | Webhooks & Performance | Webhook tests + performance fixes | TEST-06, PERF-01-05, TYPE-05-08 | 5 |
+| 4 | Polish | Documentation + frontend tests + advanced | DOC-01-03, FTEST-01-03 | 3 |
+
+---
+
+## Phase 1: Foundation
+
+**Goal:** Establish testing infrastructure and fix critical security gaps
+
+**Requirements:** TEST-01, TEST-02, TEST-03, SEC-01, SEC-02, SEC-03, OBS-01, OBS-02
+
+**Success Criteria:**
+1. Vitest runs and reports coverage
+2. AuthService has 80%+ test coverage
+3. Rate limiting blocks excessive requests
+4. Health endpoints return 200/503 appropriately
+5. No UUID v4 used for security tokens
+
+**Key Tasks:**
+- Set up Vitest with coverage reporting
+- Create test utilities and factories
+- Write AuthService tests
+- Implement rate limiting middleware
+- Create health check endpoints
+- Replace UUID with crypto.randomBytes
+
+---
+
+## Phase 2: Core Services
+
+**Goal:** Extend test coverage and fix type safety issues
+
+**Requirements:** TEST-04, TEST-05, TEST-06, TYPE-01, TYPE-02, TYPE-03, TYPE-04, BUG-01
+
+**Success Criteria:**
+1. PaymentsService has 80%+ coverage
+2. SubscriptionsService has 80%+ coverage
+3. Stripe webhook types defined
+4. No `any` types in core services
+5. User suspension logic implemented
+
+**Key Tasks:**
+- Write PaymentsService tests
+- Write SubscriptionsService tests
+- Define Stripe webhook interfaces
+- Replace `any` types in webhooks, payments, subscriptions
+- Implement user suspension
+
+---
+
+## Phase 3: Webhooks & Performance
+
+**Goal:** Complete test coverage and fix performance issues
+
+**Requirements:** TEST-06, PERF-01, PERF-02, PERF-03, PERF-04, PERF-05, TYPE-05, TYPE-06, TYPE-07, TYPE-08
+
+**Success Criteria:**
+1. WebhooksService has 80%+ coverage
+2. N+1 query fixed in admin service
+3. Database indexes added
+4. All `any` types replaced
+5. Tax calculation errors handled properly
+
+**Key Tasks:**
+- Write WebhooksService tests
+- Fix admin service N+1 query
+- Add Prisma indexes
+- Replace remaining `any` types
+- Fix tax calculation error handling
+
+---
+
+## Phase 4: Polish
+
+**Goal:** Documentation and frontend testing
+
+**Requirements:** DOC-01, DOC-02, DOC-03, FTEST-01, FTEST-02, FTEST-03
+
+**Success Criteria:**
+1. Swagger docs accessible at /api/docs
+2. All endpoints documented
+3. Frontend test framework set up
+4. Critical UI components tested
+5. E2E tests for payment flow
+
+**Key Tasks:**
+- Set up Swagger/OpenAPI
+- Document all endpoints
+- Set up React Testing Library
+- Write component tests
+- Add Playwright E2E tests
+
+---
+
+## Traceability Matrix
+
+| Req ID | Phase | Status |
+|--------|-------|--------|
+| TEST-01 | 1 | Pending |
+| TEST-02 | 1 | Pending |
+| TEST-03 | 1 | Pending |
+| SEC-01 | 1 | Pending |
+| SEC-02 | 1 | Pending |
+| SEC-03 | 1 | Pending |
+| OBS-01 | 1 | Pending |
+| OBS-02 | 1 | Pending |
+| TEST-04 | 2 | Pending |
+| TEST-05 | 2 | Pending |
+| TEST-06 | 3 | Pending |
+| TYPE-01 | 2 | Pending |
+| TYPE-02 | 2 | Pending |
+| TYPE-03 | 2 | Pending |
+| TYPE-04 | 2 | Pending |
+| TYPE-05 | 3 | Pending |
+| TYPE-06 | 3 | Pending |
+| TYPE-07 | 3 | Pending |
+| TYPE-08 | 3 | Pending |
+| PERF-01 | 3 | Pending |
+| PERF-02 | 3 | Pending |
+| PERF-03 | 3 | Pending |
+| PERF-04 | 3 | Pending |
+| PERF-05 | 3 | Pending |
+| BUG-01 | 2 | Pending |
+| DOC-01 | 4 | Pending |
+| DOC-02 | 4 | Pending |
+| DOC-03 | 4 | Pending |
+| FTEST-01 | 4 | Pending |
+| FTEST-02 | 4 | Pending |
+| FTEST-03 | 4 | Pending |
+
+---
+
+## Dependencies
+
+```
+Phase 1 (Foundation)
+  └── No dependencies
+
+Phase 2 (Core Services)
+  └── Requires: Phase 1 (testing infrastructure)
+
+Phase 3 (Webhooks & Performance)
+  └── Requires: Phase 2 (type definitions)
+
+Phase 4 (Polish)
+  └── Requires: Phase 3 (stable API)
+```
+
+---
+
+*Roadmap created: 2026-03-16*
