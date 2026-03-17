@@ -36,31 +36,63 @@ export class PaymentMethodsService {
     stripePaymentMethodId: string,
     stripeCustomerId: string,
   ): Promise<PaymentMethodEntity> {
-    // Attach to customer in Stripe
-    const stripePm = await this.stripeService.attachPaymentMethod(
-      stripePaymentMethodId,
-      stripeCustomerId,
-    );
+    // 1. Check if payment method already exists in our database
+    const existing = await this.prisma.paymentMethod.findFirst({
+      where: { userId, stripePmId: stripePaymentMethodId },
+    });
 
-    // Save to database
+    if (existing) {
+      if (existing.isActive) {
+        // Already saved and active - return existing
+        return this.toEntity(existing);
+      }
+      // Was soft-deleted - reactivate it
+      const reactivated = await this.prisma.paymentMethod.update({
+        where: { id: existing.id },
+        data: { isActive: true },
+      });
+      return this.toEntity(reactivated);
+    }
+
+    // 2. Try to attach to Stripe customer
+    let stripePm: StripePaymentMethod;
+    try {
+      stripePm = await this.stripeService.attachPaymentMethod(
+        stripePaymentMethodId,
+        stripeCustomerId,
+      );
+    } catch (attachError: any) {
+      // If already attached to this customer, fetch the payment method details
+      if (
+        attachError?.code === 'resource_already_attached' ||
+        attachError?.message?.includes('already attached')
+      ) {
+        stripePm = await this.stripeService.getPaymentMethod(stripePaymentMethodId);
+      } else {
+        throw attachError;
+      }
+    }
+
+    // 3. Check if this is the first payment method
     const isFirstPaymentMethod = !(await this.prisma.paymentMethod.findFirst({
       where: { userId, isActive: true },
     }));
 
-    // Extract type-specific data
+    // 4. Extract type-specific data
     const typeData = this.extractPaymentMethodData(stripePm);
 
+    // 5. Save to database
     const paymentMethod = await this.prisma.paymentMethod.create({
       data: {
         userId,
         stripePmId: stripePaymentMethodId,
         type: stripePm.type,
         ...typeData,
-        isDefault: isFirstPaymentMethod, // First one becomes default
+        isDefault: isFirstPaymentMethod,
       },
     });
 
-    // If it's the first, also update user record
+    // 6. If first, also update user record
     if (isFirstPaymentMethod) {
       await this.prisma.user.update({
         where: { id: userId },

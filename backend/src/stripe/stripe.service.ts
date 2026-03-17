@@ -90,6 +90,10 @@ export class StripeService {
     return this.stripe.paymentMethods.detach(paymentMethodId);
   }
 
+  async getPaymentMethod(paymentMethodId: string): Promise<Stripe.PaymentMethod> {
+    return this.stripe.paymentMethods.retrieve(paymentMethodId) as Promise<Stripe.PaymentMethod>;
+  }
+
   async listPaymentMethods(
     customerId: string,
   ): Promise<Stripe.ApiList<Stripe.PaymentMethod>> {
