@@ -2,6 +2,17 @@ import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import Stripe from 'stripe';
 import { v4 as uuidv4 } from 'uuid';
+import { handleStripeError, isRetryableStripeError, logStripeError } from './stripe.errors';
+
+/**
+ * Application info for Stripe telemetry
+ * Helps Stripe debug issues specific to this integration
+ */
+const APP_INFO: Stripe.AppInfo = {
+  name: 'stripe-integration',
+  version: '1.0.0',
+  url: 'https://github.com/yourorg/stripe-integration',
+};
 
 @Injectable()
 export class StripeService {
@@ -13,9 +24,24 @@ export class StripeService {
     if (!secretKey) {
       throw new Error('STRIPE_SECRET_KEY is not defined');
     }
+
+    const appVersion = this.configService.get<string>('npm_package_version') || '1.0.0';
+
     this.stripe = new Stripe(secretKey, {
       // Latest stable version supported by SDK
       apiVersion: '2025-02-24.acacia',
+      // App info for Stripe telemetry - helps with debugging
+      appInfo: {
+        name: APP_INFO.name,
+        version: appVersion,
+        url: APP_INFO.url,
+      },
+      // Network retry configuration for transient failures
+      maxNetworkRetries: 2,
+      // Timeout for API requests (30 seconds)
+      timeout: 30000,
+      // Telemetry enabled for better support
+      telemetry: true,
     });
   }
 

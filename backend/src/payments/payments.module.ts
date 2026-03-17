@@ -6,9 +6,10 @@ import { StripeModule } from '../stripe/stripe.module';
 import { PaymentMethodsModule } from '../payment-methods/payment-methods.module';
 import { CacheModule } from '../cache/cache.module';
 import { TaxModule } from '../tax/tax.module';
+import { PricingModule } from '../pricing/pricing.module';
 
 @Module({
-  imports: [ConfigModule, StripeModule, PaymentMethodsModule, CacheModule, TaxModule],
+  imports: [ConfigModule, StripeModule, PaymentMethodsModule, CacheModule, TaxModule, PricingModule],
   controllers: [PaymentsController],
   providers: [PaymentsService],
   exports: [PaymentsService],

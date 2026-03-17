@@ -11,6 +11,7 @@ import { CacheService } from '../cache/cache.service';
 import { MailService } from '../mail/mail.service';
 import { TaxService } from '../tax/tax.service';
 import { CurrencyService } from '../currency/currency.service';
+import { PricingService } from '../pricing/pricing.service';
 import { ConfigService } from '@nestjs/config';
 import { PaymentEntity } from './entities/payment.entity';
 import { CreateRefundDto } from './dto/create-refund.dto';
@@ -57,6 +58,7 @@ export class PaymentsService {
     private readonly configService: ConfigService,
     private readonly taxService: TaxService,
     private readonly currencyService: CurrencyService,
+    private readonly pricingService: PricingService,
   ) {}
 
   async createPaymentIntent(params: {
@@ -75,7 +77,9 @@ export class PaymentsService {
         country: string;
       };
     };
-  }): Promise<{ clientSecret: string; paymentIntentId: string; taxAmount: number }> {
+    countryCode?: string; // For PPP pricing
+    applyPppDiscount?: boolean; // Enable PPP discount (default: true)
+  }): Promise<{ clientSecret: string; paymentIntentId: string; taxAmount: number; pppDiscount?: { originalAmount: number; adjustedAmount: number; discountPercent: number; tierName: string } }> {
     // Validate currency
     const currencyValidation = this.currencyService.validateAmount(
       params.amount,
@@ -83,6 +87,32 @@ export class PaymentsService {
     );
     if (!currencyValidation.valid) {
       throw new BadRequestException(currencyValidation.error);
+    }
+
+    // Apply PPP discount if enabled
+    let adjustedAmount = params.amount;
+    let pppDiscountInfo: { originalAmount: number; adjustedAmount: number; discountPercent: number; tierName: string } | undefined;
+
+    const shouldApplyPpp = params.applyPppDiscount !== false; // Default to true
+    const countryCode = params.countryCode || params.customerDetails?.address?.country || 'US';
+
+    if (shouldApplyPpp && countryCode) {
+      const pricingResult = this.pricingService.calculatePrice(
+        params.amount,
+        countryCode,
+        params.currency,
+      );
+
+      adjustedAmount = pricingResult.adjustedAmount;
+
+      if (pricingResult.discountPercent > 0) {
+        pppDiscountInfo = {
+          originalAmount: pricingResult.originalAmount,
+          adjustedAmount: pricingResult.adjustedAmount,
+          discountPercent: pricingResult.discountPercent,
+          tierName: pricingResult.tierName,
+        };
+      }
     }
 
     // Determine payment method
@@ -121,7 +151,7 @@ export class PaymentsService {
       return cached.response;
     }
 
-    // Calculate tax if tax is enabled
+    // Calculate tax if tax is enabled (on PPP-adjusted amount)
     let taxAmount = 0;
     let taxRate = 0;
     let taxDisplayName: string | undefined;
@@ -129,7 +159,7 @@ export class PaymentsService {
     if (this.taxService.isTaxEnabled()) {
       try {
         const taxResult = await this.taxService.calculateTax({
-          amount: params.amount,
+          amount: adjustedAmount, // Use PPP-adjusted amount for tax
           currency: params.currency,
           customerDetails: params.customerDetails,
         });
@@ -143,7 +173,7 @@ export class PaymentsService {
       }
     }
 
-    const totalAmount = params.amount + taxAmount;
+    const totalAmount = adjustedAmount + taxAmount;
 
     // Create payment intent in Stripe
     const stripePi = await this.stripeService.createPaymentIntent({
@@ -157,6 +187,11 @@ export class PaymentsService {
         internalPaymentId: idempotencyKey,
         taxAmount: taxAmount.toString(),
         taxRate: taxRate.toString(),
+        originalAmount: params.amount.toString(),
+        adjustedAmount: adjustedAmount.toString(),
+        pppDiscount: pppDiscountInfo?.discountPercent?.toString() || '0',
+        pppTier: pppDiscountInfo?.tierName || '',
+        countryCode: countryCode,
       },
       idempotencyKey,
     });
@@ -166,7 +201,7 @@ export class PaymentsService {
       data: {
         userId: params.userId,
         stripePaymentIntentId: stripePi.id,
-        amount: params.amount, // base amount without tax
+        amount: adjustedAmount, // PPP-adjusted amount
         taxAmount: taxAmount || null,
         taxRate: taxRate || null,
         taxDisplayName,
@@ -186,6 +221,9 @@ export class PaymentsService {
       clientSecret: stripePi.client_secret,
       paymentIntentId: stripePi.id,
       taxAmount,
+      originalAmount: pppDiscountInfo?.originalAmount,
+      adjustedAmount: pppDiscountInfo?.adjustedAmount,
+      pppDiscount: pppDiscountInfo,
     };
 
     // Cache for idempotency
