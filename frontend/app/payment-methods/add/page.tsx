@@ -1,9 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Navbar } from '@/components/Navbar';
 import { SetupIntentForm } from '@/components/stripe/SetupIntentForm';
+import { StripeProvider } from '@/components/stripe/StripeProvider';
+import { getStripe } from '@/lib/stripe-client';
 import { useCreateSetupIntentMutation } from '@/store/api';
 import Link from 'next/link';
 
@@ -13,14 +15,13 @@ export default function AddPaymentMethodPage() {
   const [createSetupIntent, { isLoading: creatingIntent, error }] = useCreateSetupIntentMutation();
   const [setupComplete, setSetupComplete] = useState(false);
 
-  const handleStartSetup = async () => {
-    try {
-      const result = await createSetupIntent().unwrap();
-      setClientSecret(result.clientSecret);
-    } catch (err) {
-      console.error('Failed to create setup intent:', err);
-    }
-  };
+  // Auto-create setup intent when page loads
+  useEffect(() => {
+    createSetupIntent()
+      .unwrap()
+      .then(result => setClientSecret(result.clientSecret))
+      .catch(err => console.error('Failed to create setup intent:', err));
+  }, [createSetupIntent]);
 
   const handleSetupSuccess = () => {
     setSetupComplete(true);
@@ -31,7 +32,7 @@ export default function AddPaymentMethodPage() {
   };
 
   const handleCancel = () => {
-    setClientSecret(null);
+    router.push('/payment-methods');
   };
 
   return (
@@ -54,31 +55,25 @@ export default function AddPaymentMethodPage() {
 
         {error && (
           <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-6">
-            Failed to initialize payment form. Please try again.
+            Failed to initialize payment form.{' '}
+            <button
+              onClick={() => window.location.reload()}
+              className="underline hover:no-underline"
+            >
+              Try again
+            </button>
           </div>
         )}
 
-        {!clientSecret ? (
+        {creatingIntent && !clientSecret ? (
           <div className="bg-white rounded-lg shadow p-8 text-center">
-            <div className="mb-6">
-              <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <svg className="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
-                </svg>
-              </div>
-              <h2 className="text-xl font-semibold mb-2">Secure Payment Setup</h2>
-              <p className="text-gray-600">
-                We'll collect your payment details securely. You won't be charged now.
-              </p>
+            <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4 animate-pulse">
+              <svg className="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+              </svg>
             </div>
-
-            <button
-              onClick={handleStartSetup}
-              disabled={creatingIntent}
-              className="bg-blue-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-blue-700 disabled:opacity-50"
-            >
-              {creatingIntent ? 'Preparing...' : 'Enter Payment Details'}
-            </button>
+            <h2 className="text-xl font-semibold mb-2 text-gray-800">Preparing Secure Payment Form...</h2>
+            <p className="text-gray-600">Please wait while we set up the payment form.</p>
           </div>
         ) : setupComplete ? (
           <div className="bg-white rounded-lg shadow p-8 text-center">
@@ -98,15 +93,20 @@ export default function AddPaymentMethodPage() {
               Go to Payment Methods now →
             </Link>
           </div>
-        ) : (
-          <div className="bg-white rounded-lg shadow p-6">
-            <SetupIntentForm
-              clientSecret={clientSecret}
-              onSuccess={handleSetupSuccess}
-              onCancel={handleCancel}
-            />
-          </div>
-        )}
+        ) : clientSecret ? (
+          <StripeProvider
+            stripe={getStripe()}
+            options={{ clientSecret }}
+          >
+            <div className="bg-white rounded-lg shadow p-6">
+              <SetupIntentForm
+                clientSecret={clientSecret}
+                onSuccess={handleSetupSuccess}
+                onCancel={handleCancel}
+              />
+            </div>
+          </StripeProvider>
+        ) : null}
 
         <div className="mt-8 text-center text-sm text-gray-500">
           <p>
