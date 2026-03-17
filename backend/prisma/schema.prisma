@@ -46,11 +46,25 @@ model PaymentMethod {
   id            String    @id @default(cuid())
   userId        String
   stripePmId    String    @unique
-  type          String    // card, sepa_debit, us_bank_account
+  type          String    // card, sepa_debit, us_bank_account, link, cashapp, etc.
+
+  // Card-specific fields
   brand         String?   // visa, mastercard, amex
   last4         String?
   expMonth      Int?
   expYear       Int?
+
+  // Bank account fields (US ACH)
+  bankName      String?   // Bank name for ACH
+  accountType   String?   // checking, savings
+
+  // SEPA Direct Debit fields
+  bankCode      String?   // BIC/SWIFT code
+  country       String?   // ISO country code
+
+  // Wallet fields
+  walletType    String?   // apple_pay, google_pay, link, cashapp
+
   isDefault     Boolean   @default(false)
   isActive      Boolean   @default(true)
   createdAt     DateTime  @default(now())

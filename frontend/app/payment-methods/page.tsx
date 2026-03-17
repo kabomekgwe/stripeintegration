@@ -22,12 +22,13 @@ import {
   TrashIcon,
   WarningCircleIcon,
   CheckCircleIcon,
+  Icon,
 } from '@phosphor-icons/react';
 
 // Map Stripe payment method types to display names and icons
-const PAYMENT_METHOD_INFO: Record<string, { 
-  name: string; 
-  icon: React.ComponentType<{ className?: string; weight?: string }>;
+const PAYMENT_METHOD_INFO: Record<string, {
+  name: string;
+  icon: typeof CreditCardIcon;
   color: string;
   wallets?: string[];
 }> = {
@@ -125,7 +126,7 @@ const PAYMENT_METHOD_INFO: Record<string, {
 };
 
 // Card brand icons mapping
-const CARD_BRAND_ICONS: Record<string, React.ComponentType<{ className?: string; weight?: string }>> = {
+const CARD_BRAND_ICONS: Record<string, typeof CreditCardIcon> = {
   visa: CreditCardIcon,
   mastercard: CreditCardIcon,
   amex: CreditCardIcon,
@@ -298,13 +299,53 @@ export default function PaymentMethodsPage() {
           ) : (
             <div className="space-y-4">
               {paymentMethods.map((method) => {
-                const Icon = method.brand 
+                // Get payment method info based on type
+                const pmInfo = PAYMENT_METHOD_INFO[method.type] || {
+                  name: method.type,
+                  icon: CreditCardIcon,
+                  color: 'text-gray-600 bg-gray-50',
+                };
+
+                // Determine icon based on payment method type
+                const Icon = method.type === 'card' && method.brand
                   ? (CARD_BRAND_ICONS[method.brand.toLowerCase()] || CreditCardIcon)
-                  : CreditCardIcon;
-                
+                  : pmInfo.icon;
+
+                // Format display based on payment method type
+                const getDisplayInfo = () => {
+                  switch (method.type) {
+                    case 'card':
+                      return {
+                        primary: method.brand
+                          ? `${method.brand.charAt(0).toUpperCase() + method.brand.slice(1)} •••• ${method.last4}`
+                          : `Card •••• ${method.last4}`,
+                        secondary: method.expMonth && method.expYear
+                          ? `Expires ${method.expMonth.toString().padStart(2, '0')}/${method.expYear}`
+                          : undefined,
+                      };
+                    case 'us_bank_account':
+                      return {
+                        primary: method.bankName || 'Bank Account',
+                        secondary: `${method.last4 ? `•••• ${method.last4}` : ''}${method.accountType ? ` • ${method.accountType.charAt(0).toUpperCase() + method.accountType.slice(1)}` : ''}`.trim(),
+                      };
+                    case 'sepa_debit':
+                      return {
+                        primary: 'SEPA Direct Debit',
+                        secondary: `${method.bankCode || ''}${method.last4 ? ` •••• ${method.last4}` : ''}${method.country ? ` • ${method.country}` : ''}`.trim() || undefined,
+                      };
+                    default:
+                      return {
+                        primary: pmInfo.name,
+                        secondary: method.last4 ? `•••• ${method.last4}` : undefined,
+                      };
+                  }
+                };
+
+                const displayInfo = getDisplayInfo();
+
                 return (
-                  <Card 
-                    key={method.id} 
+                  <Card
+                    key={method.id}
                     className={method.isDefault ? 'border-primary ring-1 ring-primary' : ''}
                   >
                     <CardContent className="p-6">
@@ -315,11 +356,7 @@ export default function PaymentMethodsPage() {
                           </div>
                           <div>
                             <div className="flex items-center gap-2">
-                              <p className="font-semibold">
-                                {method.brand 
-                                  ? `${method.brand.charAt(0).toUpperCase() + method.brand.slice(1)} •••• ${method.last4}`
-                                  : 'Card'}
-                              </p>
+                              <p className="font-semibold">{displayInfo.primary}</p>
                               {method.isDefault && (
                                 <Badge variant="default" className="gap-1">
                                   <StarIcon className="h-3 w-3" weight="fill" />
@@ -327,9 +364,9 @@ export default function PaymentMethodsPage() {
                                 </Badge>
                               )}
                             </div>
-                            {method.expMonth && method.expYear && (
+                            {displayInfo.secondary && (
                               <p className="text-sm text-muted-foreground">
-                                Expires {method.expMonth.toString().padStart(2, '0')}/{method.expYear}
+                                {displayInfo.secondary}
                               </p>
                             )}
                           </div>

@@ -92,12 +92,32 @@ export class StripeService {
 
   async listPaymentMethods(
     customerId: string,
-    type?: Stripe.PaymentMethodListParams.Type,
   ): Promise<Stripe.ApiList<Stripe.PaymentMethod>> {
-    return this.stripe.paymentMethods.list({
-      customer: customerId,
-      type: type || 'card',
-    });
+    // Get all enabled payment method types from Dashboard
+    const { paymentMethodTypes } = await this.getEnabledPaymentMethods();
+
+    const allMethods: Stripe.PaymentMethod[] = [];
+
+    // Fetch each type (Stripe API requires type parameter)
+    for (const type of paymentMethodTypes) {
+      try {
+        const methods = await this.stripe.paymentMethods.list({
+          customer: customerId,
+          type: type as Stripe.PaymentMethodListParams.Type,
+        });
+        allMethods.push(...methods.data);
+      } catch {
+        // Skip types that don't support listing
+        continue;
+      }
+    }
+
+    return {
+      object: 'list',
+      data: allMethods,
+      has_more: false,
+      url: '/v1/payment_methods',
+    } as Stripe.ApiList<Stripe.PaymentMethod>;
   }
 
   // Setup intents (for saving payment methods)
@@ -247,94 +267,154 @@ export class StripeService {
   }
 
   /**
-   * Get enabled payment method types for the account
-   * Fetches from Stripe Account API to get actual enabled payment methods
-   * based on account capabilities
+   * Get enabled payment method configurations for the account
+   * Uses Stripe PaymentMethodConfigurations API to get the actual enabled methods
    */
   async getEnabledPaymentMethods(): Promise<{
-    paymentMethodTypes: string[];
-    paymentMethodConfigurations: Record<string, { enabled: boolean }>;
-  }> {
-    try {
-      // Retrieve account to get capabilities (enabled payment methods)
-      // 'self' retrieves the account associated with the API key
-      console.log(await this.stripe.paymentMethodConfigurations.list({limit: 100}))
-      const account = await this.stripe.accounts.retrieve('self');
-      
-      const paymentMethodTypes: string[] = [];
-      const paymentMethodConfigurations: Record<string, { enabled: boolean }> = {};
+  paymentMethodTypes: string[];
+  paymentMethodConfigurations: Array<{
+    id: string;
+    displayName: string;
+    parent?: string;
+    active: boolean;
+  }>;
+}> {
+  try {
+    const configs = await this.stripe.paymentMethodConfigurations.list({
+      limit: 100,
+    });
 
-      // Map account capabilities to payment method types
-      // Capabilities are returned as 'active', 'pending', or 'inactive'
-      const capabilities = account.capabilities || {};
-      
-      const capabilityToPaymentMethod: Record<string, string> = {
-        card_payments: 'card',
-        us_bank_account_ach_payments: 'us_bank_account',
-        sepa_debit_payments: 'sepa_debit',
-        au_becs_debit_payments: 'au_becs_debit',
-        bacs_debit_payments: 'bacs_debit',
-        bancontact_payments: 'bancontact',
-        ideal_payments: 'ideal',
-        giropay_payments: 'giropay',
-        eps_payments: 'eps',
-        p24_payments: 'p24',
-        sofort_payments: 'sofort',
-        link_payments: 'link',
-        affirm_payments: 'affirm',
-        afterpay_clearpay_payments: 'afterpay_clearpay',
-        klarna_payments: 'klarna',
-        wechat_pay_payments: 'wechat_pay',
-        alipay_payments: 'alipay',
-        acss_debit_payments: 'acss_debit',
-        blik_payments: 'blik',
-        customer_balance_payments: 'customer_balance',
-        fpx_payments: 'fpx',
-        grabpay_payments: 'grabpay',
-        interac_payments: 'interac',
-        oxxo_payments: 'oxxo',
-        pix_payments: 'pix',
-        promptpay_payments: 'promptpay',
-        revolut_pay_payments: 'revolut_pay',
-        swish_payments: 'swish',
-        twint_payments: 'twint',
-        zip_payments: 'zip',
-      };
+    const configurationsArray: Array<{
+      id: string;
+      displayName: string;
+      parent?: string;
+      active: boolean;
+    }> = [];
 
-      console.log('capppp', capabilities)
+    const paymentMethodTypes: string[] = [];
 
-      // Always include card if card_payments capability exists or as default
-      if (capabilities.card_payments === 'active' || !capabilities.card_payments) {
-        paymentMethodTypes.push('card');
-        paymentMethodConfigurations.card = { enabled: true };
-      }
+    const NON_PAYMENT_METHOD_KEYS = new Set([
+      'id',
+      'object',
+      'active',
+      'application',
+      'is_default',
+      'livemode',
+      'name',
+      'parent',
+    ]);
 
-      // Map other capabilities to payment methods
-      for (const [capability, paymentMethod] of Object.entries(capabilityToPaymentMethod)) {
-        if (capability !== 'card_payments' && capabilities[capability] === 'active') {
-          paymentMethodTypes.push(paymentMethod);
-          paymentMethodConfigurations[paymentMethod] = { enabled: true };
+    for (const config of configs.data) {
+      if (!config.active) continue;
+
+      for (const [type, value] of Object.entries(config)) {
+        if (NON_PAYMENT_METHOD_KEYS.has(type)) continue;
+        if (!value || typeof value !== 'object') continue;
+
+        const paymentMethodConfig = value as {
+          available?: boolean;
+          display_preference?: {
+            overridable?: boolean | null;
+            preference?: string;
+            value?: string;
+          };
+        };
+
+        // Keep only enabled/available methods
+        if (!paymentMethodConfig.available) continue;
+
+        // Optional: require Stripe display setting to also be "on"
+        // if (paymentMethodConfig.display_preference?.value !== 'on') continue;
+
+        if (!paymentMethodTypes.includes(type)) {
+          paymentMethodTypes.push(type);
+        }
+
+        if (!configurationsArray.some((item) => item.id === type)) {
+          configurationsArray.push({
+            id: type,
+            displayName: this.getDisplayName(type),
+            parent: undefined,
+            active: true,
+          });
         }
       }
-
-      // If no payment methods found, default to card
-      if (paymentMethodTypes.length === 0) {
-        paymentMethodTypes.push('card');
-        paymentMethodConfigurations.card = { enabled: true };
-      }
-
-      return {
-        paymentMethodTypes,
-        paymentMethodConfigurations,
-      };
-    } catch (error) {
-      this.logger.warn('Could not retrieve account capabilities, using defaults', error);
-      // Return defaults if API fails
-      return {
-        paymentMethodTypes: ['card'],
-        paymentMethodConfigurations: { card: { enabled: true } },
-      };
     }
+
+    if (configurationsArray.length === 0) {
+      configurationsArray.push({
+        id: 'card',
+        displayName: 'Card',
+        parent: undefined,
+        active: true,
+      });
+      paymentMethodTypes.push('card');
+    }
+
+    return {
+      paymentMethodTypes,
+      paymentMethodConfigurations: configurationsArray,
+    };
+  } catch (error) {
+    this.logger.warn(
+      'Could not retrieve payment method configurations, using defaults',
+      error,
+    );
+
+    return {
+      paymentMethodTypes: ['card'],
+      paymentMethodConfigurations: [
+        {
+          id: 'card',
+          displayName: 'Card',
+          parent: undefined,
+          active: true,
+        },
+      ],
+    };
+  }
+}
+
+  /**
+   * Get display name for payment method type
+   */
+  private getDisplayName(type: string): string {
+    const displayNames: Record<string, string> = {
+      card: 'Card',
+      us_bank_account: 'US Bank Account (ACH)',
+      sepa_debit: 'SEPA Direct Debit',
+      au_becs_debit: 'BECS Direct Debit',
+      bacs_debit: 'BACS Direct Debit',
+      bancontact: 'Bancontact',
+      ideal: 'iDEAL',
+      giropay: 'Giropay',
+      eps: 'EPS',
+      p24: 'Przelewy24',
+      sofort: 'Sofort',
+      link: 'Link',
+      affirm: 'Affirm',
+      afterpay_clearpay: 'Afterpay / Clearpay',
+      klarna: 'Klarna',
+      wechat_pay: 'WeChat Pay',
+      alipay: 'Alipay',
+      cashapp: 'Cash App Pay',
+    };
+    return displayNames[type] || type.charAt(0).toUpperCase() + type.slice(1).replace(/_/g, ' ');
+  }
+
+  /**
+   * Get parent type for payment method (e.g., 'card' for 'visa', 'mastercard')
+   */
+  private getParentType(type: string): string | undefined {
+    const parentMap: Record<string, string> = {
+      // Card brands have 'card' as parent
+      visa: 'card',
+      mastercard: 'card',
+      amex: 'card',
+      discover: 'card',
+      // Add others as needed
+    };
+    return parentMap[type];
   }
 
   /**

@@ -49,7 +49,7 @@ export default function AddPaymentMethodPage() {
 
         <h1 className="text-3xl font-bold mb-2">Add Payment Method</h1>
         <p className="text-gray-600 mb-8">
-          Add a new payment method to your account. Your card information is securely handled by Stripe.
+          Add a new payment method to your account. Your payment information is securely handled by Stripe.
         </p>
 
         {error && (
@@ -66,9 +66,9 @@ export default function AddPaymentMethodPage() {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
                 </svg>
               </div>
-              <h2 className="text-xl font-semibold mb-2">Secure Card Setup</h2>
+              <h2 className="text-xl font-semibold mb-2">Secure Payment Setup</h2>
               <p className="text-gray-600">
-                We'll collect your card details securely. You won't be charged now.
+                We'll collect your payment details securely. You won't be charged now.
               </p>
             </div>
 
@@ -77,7 +77,7 @@ export default function AddPaymentMethodPage() {
               disabled={creatingIntent}
               className="bg-blue-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-blue-700 disabled:opacity-50"
             >
-              {creatingIntent ? 'Preparing...' : 'Enter Card Details'}
+              {creatingIntent ? 'Preparing...' : 'Enter Payment Details'}
             </button>
           </div>
         ) : setupComplete ? (
@@ -89,7 +89,7 @@ export default function AddPaymentMethodPage() {
             </div>
             <h2 className="text-xl font-semibold text-green-800 mb-2">Payment Method Added!</h2>
             <p className="text-gray-600 mb-4">
-              Your card has been saved successfully. Redirecting you back...
+              Your payment method has been saved successfully. Redirecting you back...
             </p>
             <Link
               href="/payment-methods"
@@ -111,7 +111,7 @@ export default function AddPaymentMethodPage() {
         <div className="mt-8 text-center text-sm text-gray-500">
           <p>
             🔒 Your payment information is processed securely by Stripe.
-            We never store your full card details.
+            We never store your full payment details.
           </p>
         </div>
       </main>

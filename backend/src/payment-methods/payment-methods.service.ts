@@ -2,6 +2,9 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../database/prisma.service';
 import { StripeService } from '../stripe/stripe.service';
 import { PaymentMethodEntity } from './entities/payment-method.entity';
+import Stripe from 'stripe';
+
+type StripePaymentMethod = Stripe.PaymentMethod;
 
 @Injectable()
 export class PaymentMethodsService {
@@ -42,15 +45,15 @@ export class PaymentMethodsService {
       where: { userId, isActive: true },
     }));
 
+    // Extract type-specific data
+    const typeData = this.extractPaymentMethodData(stripePm);
+
     const paymentMethod = await this.prisma.paymentMethod.create({
       data: {
         userId,
         stripePmId: stripePaymentMethodId,
         type: stripePm.type,
-        brand: stripePm.card?.brand,
-        last4: stripePm.card?.last4,
-        expMonth: stripePm.card?.exp_month,
-        expYear: stripePm.card?.exp_year,
+        ...typeData,
         isDefault: isFirstPaymentMethod, // First one becomes default
       },
     });
@@ -64,6 +67,45 @@ export class PaymentMethodsService {
     }
 
     return this.toEntity(paymentMethod);
+  }
+
+  private extractPaymentMethodData(stripePm: StripePaymentMethod): Record<string, any> {
+    const data: Record<string, any> = {};
+
+    switch (stripePm.type) {
+      case 'card':
+        if (stripePm.card) {
+          data.brand = stripePm.card.brand;
+          data.last4 = stripePm.card.last4;
+          data.expMonth = stripePm.card.exp_month;
+          data.expYear = stripePm.card.exp_year;
+        }
+        break;
+
+      case 'us_bank_account':
+        if (stripePm.us_bank_account) {
+          data.bankName = stripePm.us_bank_account.bank_name;
+          data.last4 = stripePm.us_bank_account.last4;
+          data.accountType = stripePm.us_bank_account.account_type;
+        }
+        break;
+
+      case 'sepa_debit':
+        if (stripePm.sepa_debit) {
+          data.bankCode = stripePm.sepa_debit.bank_code;
+          data.last4 = stripePm.sepa_debit.last4;
+          data.country = stripePm.sepa_debit.country;
+        }
+        break;
+
+      default:
+        // Fallback for other payment method types
+        if ((stripePm as any).last4) {
+          data.last4 = (stripePm as any).last4;
+        }
+    }
+
+    return data;
   }
 
   async findByUser(userId: string): Promise<PaymentMethodEntity[]> {
@@ -166,10 +208,20 @@ export class PaymentMethodsService {
       id: pm.id,
       stripePmId: pm.stripePmId,
       type: pm.type,
+      // Card fields
       brand: pm.brand,
       last4: pm.last4,
       expMonth: pm.expMonth,
       expYear: pm.expYear,
+      // Bank account fields
+      bankName: pm.bankName,
+      accountType: pm.accountType,
+      // SEPA fields
+      bankCode: pm.bankCode,
+      country: pm.country,
+      // Wallet fields
+      walletType: pm.walletType,
+      // Common fields
       isDefault: pm.isDefault,
       isActive: pm.isActive,
       createdAt: pm.createdAt,
