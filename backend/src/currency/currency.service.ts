@@ -81,6 +81,15 @@ export class CurrencyService {
       maxAmount: 99999999,
       supportedPaymentMethods: ['card', 'link'],
     }],
+    ['zar', {
+      code: 'ZAR',
+      name: 'South African Rand',
+      symbol: 'R',
+      stripeCode: 'zar',
+      minAmount: 50, // R0.50
+      maxAmount: 99999999,
+      supportedPaymentMethods: ['card'],
+    }],
   ]);
 
   constructor(

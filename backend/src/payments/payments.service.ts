@@ -77,9 +77,8 @@ export class PaymentsService {
         country: string;
       };
     };
-    countryCode?: string; // For PPP pricing
-    applyPppDiscount?: boolean; // Enable PPP discount (default: true)
-  }): Promise<{ clientSecret: string; paymentIntentId: string; taxAmount: number; pppDiscount?: { originalAmount: number; adjustedAmount: number; discountPercent: number; tierName: string } }> {
+    countryCode?: string;
+  }): Promise<{ clientSecret: string; paymentIntentId: string; taxAmount: number }> {
     // Validate currency
     const currencyValidation = this.currencyService.validateAmount(
       params.amount,
@@ -89,31 +88,8 @@ export class PaymentsService {
       throw new BadRequestException(currencyValidation.error);
     }
 
-    // Apply PPP discount if enabled
-    let adjustedAmount = params.amount;
-    let pppDiscountInfo: { originalAmount: number; adjustedAmount: number; discountPercent: number; tierName: string } | undefined;
-
-    const shouldApplyPpp = params.applyPppDiscount !== false; // Default to true
+    const amount = params.amount;
     const countryCode = params.countryCode || params.customerDetails?.address?.country || 'US';
-
-    if (shouldApplyPpp && countryCode) {
-      const pricingResult = this.pricingService.calculatePrice(
-        params.amount,
-        countryCode,
-        params.currency,
-      );
-
-      adjustedAmount = pricingResult.adjustedAmount;
-
-      if (pricingResult.discountPercent > 0) {
-        pppDiscountInfo = {
-          originalAmount: pricingResult.originalAmount,
-          adjustedAmount: pricingResult.adjustedAmount,
-          discountPercent: pricingResult.discountPercent,
-          tierName: pricingResult.tierName,
-        };
-      }
-    }
 
     // Determine payment method
     let paymentMethodStripeId: string | undefined;
@@ -151,7 +127,7 @@ export class PaymentsService {
       return cached.response;
     }
 
-    // Calculate tax if tax is enabled (on PPP-adjusted amount)
+    // Calculate tax if tax is enabled
     let taxAmount = 0;
     let taxRate = 0;
     let taxDisplayName: string | undefined;
@@ -159,7 +135,7 @@ export class PaymentsService {
     if (this.taxService.isTaxEnabled()) {
       try {
         const taxResult = await this.taxService.calculateTax({
-          amount: adjustedAmount, // Use PPP-adjusted amount for tax
+          amount: amount,
           currency: params.currency,
           customerDetails: params.customerDetails,
         });
@@ -173,7 +149,7 @@ export class PaymentsService {
       }
     }
 
-    const totalAmount = adjustedAmount + taxAmount;
+    const totalAmount = amount + taxAmount;
 
     // Create payment intent in Stripe
     const stripePi = await this.stripeService.createPaymentIntent({
@@ -187,26 +163,28 @@ export class PaymentsService {
         internalPaymentId: idempotencyKey,
         taxAmount: taxAmount.toString(),
         taxRate: taxRate.toString(),
-        originalAmount: params.amount.toString(),
-        adjustedAmount: adjustedAmount.toString(),
-        pppDiscount: pppDiscountInfo?.discountPercent?.toString() || '0',
-        pppTier: pppDiscountInfo?.tierName || '',
+        amount: amount.toString(),
+        currency: params.currency,
         countryCode: countryCode,
       },
       idempotencyKey,
     });
 
     // Create record in database
+    const mappedStatus = this.mapStripeStatus(stripePi.status);
+    console.log('DEBUG - Stripe status:', stripePi.status);
+    console.log('DEBUG - Mapped status:', mappedStatus);
+    console.log('DEBUG - PaymentStatus enum:', PaymentStatus);
     await this.prisma.paymentRecord.create({
       data: {
         userId: params.userId,
         stripePaymentIntentId: stripePi.id,
-        amount: adjustedAmount, // PPP-adjusted amount
+        amount: amount,
         taxAmount: taxAmount || null,
         taxRate: taxRate || null,
         taxDisplayName,
         currency: params.currency,
-        status: stripePi.status.toUpperCase() as PaymentStatus,
+        status: mappedStatus,
         paymentMethodId: params.paymentMethodId,
         description: params.description,
         metadata: stripePi.metadata,
@@ -221,16 +199,13 @@ export class PaymentsService {
       clientSecret: stripePi.client_secret,
       paymentIntentId: stripePi.id,
       taxAmount,
-      originalAmount: pppDiscountInfo?.originalAmount,
-      adjustedAmount: pppDiscountInfo?.adjustedAmount,
-      pppDiscount: pppDiscountInfo,
     };
 
     // Cache for idempotency
     await this.redisService.setIdempotency(idempotencyKey, result);
 
     return result;
-}
+  }
 
   async confirmPayment(
     paymentIntentId: string,
@@ -255,7 +230,7 @@ export class PaymentsService {
     const updated = await this.prisma.paymentRecord.update({
       where: { id: record.id },
       data: {
-        status: stripePi.status.toUpperCase() as PaymentStatus,
+        status: this.mapStripeStatus(stripePi.status),
         errorMessage: stripePi.last_payment_error?.message,
       },
     });
@@ -506,6 +481,19 @@ export class PaymentsService {
       paymentId: refund.paymentId,
       createdAt: refund.createdAt,
     }));
+  }
+
+  private mapStripeStatus(stripeStatus: string): PaymentStatus {
+    const statusMap: Record<string, PaymentStatus> = {
+      requires_payment_method: PaymentStatus.PENDING,
+      requires_confirmation: PaymentStatus.REQUIRES_ACTION,
+      requires_action: PaymentStatus.REQUIRES_ACTION,
+      processing: PaymentStatus.PROCESSING,
+      succeeded: PaymentStatus.SUCCEEDED,
+      canceled: PaymentStatus.CANCELED,
+    };
+
+    return statusMap[stripeStatus] || PaymentStatus.PENDING;
   }
 
   private toEntity(payment: Prisma.PaymentRecordGetPayload<{

@@ -332,7 +332,7 @@ describe('PaymentsService', () => {
           stripePaymentIntentId: 'pi_test123',
           amount: 1000,
           currency: 'usd',
-          status: 'REQUIRES_CONFIRMATION',
+          status: 'REQUIRES_ACTION',
           paymentMethodId: undefined,
           description: 'Test payment',
         }),

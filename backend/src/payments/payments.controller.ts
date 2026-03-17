@@ -35,6 +35,7 @@ export class PaymentsController {
       currency: createPaymentDto.currency,
       paymentMethodId: createPaymentDto.paymentMethodId,
       description: createPaymentDto.description,
+      countryCode: req.user.country,
       customerDetails: createPaymentDto.customerDetails && {
         address: {
           line1: createPaymentDto.customerDetails.address.line1,

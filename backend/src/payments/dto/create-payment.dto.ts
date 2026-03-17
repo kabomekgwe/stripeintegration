@@ -51,4 +51,8 @@ export class CreatePaymentDto {
   @ValidateNested()
   @Type(() => CustomerDetailsDto)
   customerDetails?: CustomerDetailsDto;
+
+  @IsOptional()
+  @IsString()
+  countryCode?: string;
 }

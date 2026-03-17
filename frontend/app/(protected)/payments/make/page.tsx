@@ -5,15 +5,17 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Navbar } from '@/components/Navbar';
 import { PaymentElementForm } from '@/components/stripe/PaymentElementForm';
-import { 
-  useCreatePaymentIntentMutation, 
-  useGetPaymentMethodsQuery, 
-  useGetMeQuery, 
+import {
+  useCreatePaymentIntentMutation,
+  useGetPaymentMethodsQuery,
+  useGetMeQuery,
   useGetCurrenciesQuery,
   useDetectCurrencyQuery,
   useConvertCurrencyQuery,
   useUpdatePreferredCurrencyMutation,
 } from '@/store/api';
+import { StripeProvider } from '@/components/stripe/StripeProvider';
+import { getStripe } from '@/lib/stripe-client';
 
 const currencySymbols: Record<string, string> = {
   usd: '$',
@@ -22,6 +24,7 @@ const currencySymbols: Record<string, string> = {
   cad: 'C$',
   aud: 'A$',
   jpy: '¥',
+  zar: 'R',
 };
 
 const currencyFlags: Record<string, string> = {
@@ -31,6 +34,7 @@ const currencyFlags: Record<string, string> = {
   cad: '🇨🇦',
   aud: '🇦🇺',
   jpy: '🇯🇵',
+  zar: '🇿🇦',
 };
 
 export default function MakePaymentPage() {
@@ -103,6 +107,7 @@ export default function MakePaymentPage() {
       setPaymentCreated(true);
     } catch (err) {
       console.error('Failed to create payment:', err);
+      console.error('Error details:', JSON.stringify(err, null, 2));
     }
   };
 
@@ -160,12 +165,17 @@ export default function MakePaymentPage() {
               </div>
             </div>
 
-            <PaymentElementForm
-              clientSecret={clientSecret}
-              paymentIntentId={paymentIntentId}
-              onSuccess={handlePaymentSuccess}
-              onCancel={handleCancel}
-            />
+            <StripeProvider
+              stripe={getStripe()}
+              options={{ clientSecret }}
+            >
+              <PaymentElementForm
+                clientSecret={clientSecret}
+                paymentIntentId={paymentIntentId}
+                onSuccess={handlePaymentSuccess}
+                onCancel={handleCancel}
+              />
+            </StripeProvider>
           </div>
         </main>
       </div>
