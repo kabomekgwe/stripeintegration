@@ -219,7 +219,7 @@ export default function PaymentMethodsPage() {
                 ))}
               </div>
             ) : enabledPaymentMethods.length === 0 ? (
-              <Alert variant="warning">
+              <Alert variant="default">
                 <WarningCircleIcon className="h-4 w-4" />
                 <AlertDescription>
                   No payment methods enabled. Enable them in your{' '}

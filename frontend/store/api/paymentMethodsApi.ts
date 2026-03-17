@@ -29,10 +29,11 @@ export const paymentMethodsApi = baseApi.injectEndpoints({
       query: () => '/payment-methods/enabled',
     }),
 
-    createSetupIntent: builder.mutation<SetupIntentResponse, void>({
-      query: () => ({
+    createSetupIntent: builder.mutation<SetupIntentResponse, { paymentMethodId?: string } | void>({
+      query: (body) => ({
         url: '/payment-methods/setup-intent',
         method: 'POST',
+        body: body || {},
       }),
     }),
 

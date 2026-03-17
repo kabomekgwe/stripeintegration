@@ -124,20 +124,25 @@ export class StripeService {
   async createSetupIntent(
     customerId: string,
     metadata?: Record<string, string>,
+    paymentMethodId?: string, // Optional: pass existing payment method
   ): Promise<Stripe.SetupIntent> {
     const idempotencyKey = uuidv4();
 
-    return this.stripe.setupIntents.create(
-      {
-        customer: customerId,
-        // Use automatic_payment_methods instead of hardcoded types
-        // Enable desired methods in Stripe Dashboard: https://dashboard.stripe.com/settings/payments
-        automatic_payment_methods: {
-          enabled: true,
-        },
-        metadata,
-        usage: 'off_session',
+    const setupIntentParams: Stripe.SetupIntentCreateParams = {
+      customer: customerId,
+      automatic_payment_methods: {
+        enabled: true,
       },
+      metadata,
+      usage: 'off_session',
+    };
+
+    if (paymentMethodId) {
+      setupIntentParams.payment_method = paymentMethodId;
+    }
+
+    return this.stripe.setupIntents.create(
+      setupIntentParams,
       { idempotencyKey },
     );
   }

@@ -16,10 +16,12 @@ export class PaymentMethodsService {
   async createSetupIntent(
     userId: string,
     stripeCustomerId: string,
+    paymentMethodId?: string,
   ): Promise<{ clientSecret: string }> {
     const setupIntent = await this.stripeService.createSetupIntent(
       stripeCustomerId,
       { userId },
+      paymentMethodId,
     );
 
     if (!setupIntent.client_secret) {

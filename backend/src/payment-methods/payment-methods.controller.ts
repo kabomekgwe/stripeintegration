@@ -36,10 +36,14 @@ export class PaymentMethodsController {
 
   @Post('setup-intent')
   @UseGuards(JwtAuthGuard)
-  async createSetupIntent(@Request() req) {
+  async createSetupIntent(
+    @Request() req,
+    @Body('paymentMethodId') paymentMethodId?: string,
+  ) {
     const result = await this.paymentMethodsService.createSetupIntent(
       req.user.id,
       req.user.stripeCustomerId,
+      paymentMethodId,
     );
     return result;
   }
