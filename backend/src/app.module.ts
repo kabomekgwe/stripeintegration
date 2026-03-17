@@ -26,6 +26,7 @@ import { ApiKeyGuard } from './common/guards/api-key.guard';
 import { RateLimitGuard } from './common/guards/rate-limit.guard';
 import { GlobalRateLimitMiddleware } from './common/middleware/global-rate-limit.middleware';
 import { HealthModule } from './health/health.module';
+import { PricingModule } from './pricing/pricing.module';
 
 @Module({
   imports: [
@@ -55,6 +56,7 @@ import { HealthModule } from './health/health.module';
     DisputeModule,
     ConnectModule,
     HealthModule,
+    PricingModule,
   ],
   providers: [
     {
