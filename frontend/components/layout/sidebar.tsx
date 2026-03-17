@@ -5,30 +5,30 @@ import { usePathname } from 'next/navigation';
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
 import {
-  LayoutDashboard,
+  SquaresFour,
   CreditCard,
   Wallet,
   Repeat,
-  BarChart3,
-  AlertTriangle,
-  Link,
-  Settings,
-  Menu,
-  ChevronLeft,
-  ChevronRight,
+  ChartBar,
+  Warning,
+  Link as LinkIcon,
+  GearSix,
+  List,
+  CaretLeft,
+  CaretRight,
 } from '@phosphor-icons/react';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 
 const navItems = [
-  { href: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
+  { href: '/dashboard', icon: SquaresFour, label: 'Dashboard' },
   { href: '/payments', icon: CreditCard, label: 'Payments' },
   { href: '/payment-methods', icon: Wallet, label: 'Payment Methods' },
   { href: '/subscriptions', icon: Repeat, label: 'Subscriptions' },
-  { href: '/usage', icon: BarChart3, label: 'Usage' },
-  { href: '/disputes', icon: AlertTriangle, label: 'Disputes' },
-  { href: '/connect', icon: Link, label: 'Connect' },
-  { href: '/settings', icon: Settings, label: 'Settings' },
+  { href: '/usage', icon: ChartBar, label: 'Usage' },
+  { href: '/disputes', icon: Warning, label: 'Disputes' },
+  { href: '/connect', icon: LinkIcon, label: 'Connect' },
+  { href: '/settings', icon: GearSix, label: 'Settings' },
 ];
 
 interface SidebarProps {
@@ -86,9 +86,9 @@ export function AppLayout({ children }: SidebarProps) {
           aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
         >
           {collapsed ? (
-            <ChevronRight className="h-5 w-5" />
+            <CaretRight className="h-5 w-5" />
           ) : (
-            <ChevronLeft className="h-5 w-5" />
+            <CaretLeft className="h-5 w-5" />
           )}
         </button>
       </div>
@@ -116,7 +116,7 @@ export function AppLayout({ children }: SidebarProps) {
             className="fixed left-4 top-4 z-50 lg:hidden"
             aria-label="Open menu"
           >
-            <Menu className="h-6 w-6" />
+            <List className="h-6 w-6" />
           </Button>
         </SheetTrigger>
         <SheetContent side="left" className="w-64 p-0">
