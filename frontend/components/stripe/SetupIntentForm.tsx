@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import {
   PaymentElement,
   useStripe,
@@ -30,20 +30,23 @@ export function SetupIntentForm({
 
   // ExpressCheckoutElement (Apple Pay/Google Pay) is optional and may not be available
   // on all browsers. Handle its failure gracefully.
-  const handleExpressCheckoutError = (error: StripeError) => {
+  const handleExpressCheckoutLoadError = (event: { elementType: 'expressCheckout'; error: StripeError }) => {
     // Log for debugging but don't show to user - this is often expected
-    console.warn('Express checkout not available:', error.message || 'Browser does not support Apple Pay/Google Pay');
+    console.warn('Express checkout not available:', event.error.message || 'Browser does not support Apple Pay/Google Pay');
     setExpressCheckoutAvailable(false);
   };
 
   // PaymentElement errors are critical - show to user
-  const handlePaymentElementError = (error: StripeError) => {
+  const handlePaymentElementLoadError = (event: { elementType: 'payment'; error: StripeError }) => {
+    const error = event.error;
     // Stripe sometimes returns empty error objects when JS fails to load
     // Provide a more helpful error message
-    const errorMessage = error.message ||
-      (Object.keys(error).length === 0
-        ? 'Stripe.js failed to load. Please check your internet connection, disable any ad blockers, and refresh the page.'
-        : 'Unknown error loading payment form');
+    const isEmptyError = !error.message && Object.keys(error).length === 0;
+    const errorMessage = error.message || (
+      isEmptyError
+        ? 'Stripe.js failed to load. This can happen due to network issues, ad blockers, or Content Security Policy restrictions. Please check your internet connection, disable any ad blockers, and refresh the page.'
+        : 'Unknown error loading payment form. Please try again.'
+    );
 
     console.error('Payment element load error:', {
       message: error.message,
@@ -52,18 +55,11 @@ export function SetupIntentForm({
       hasKeys: Object.keys(error).length > 0
     });
 
-    setError(`Failed to load payment form: ${errorMessage}`);
+    setError(errorMessage);
   };
 
-  // Debug: Log when component mounts to verify Stripe is loaded
-  useEffect(() => {
-    console.log('SetupIntentForm mounted', {
-      hasStripe: !!stripe,
-      hasElements: !!elements,
-      clientSecretLength: clientSecret?.length,
-      clientSecretPrefix: clientSecret?.substring(0, 10)
-    });
-  }, [stripe, elements, clientSecret]);
+  // Show loading state while Stripe.js is initializing
+  const isStripeLoading = !stripe || !elements;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -104,7 +100,7 @@ export function SetupIntentForm({
       {expressCheckoutAvailable && (
         <>
           <ExpressCheckoutElement
-            onLoadError={handleExpressCheckoutError}
+            onLoadError={handleExpressCheckoutLoadError}
             onConfirm={async () => {
               if (!stripe || !elements) return;
 
@@ -138,7 +134,7 @@ export function SetupIntentForm({
         </>
       )}
 
-      <PaymentElement onLoadError={handlePaymentElementError} />
+      <PaymentElement onLoadError={handlePaymentElementLoadError} />
 
       {error && (
         <div className="rounded-md bg-red-50 p-3 text-sm text-red-700">
@@ -146,18 +142,24 @@ export function SetupIntentForm({
         </div>
       )}
 
+      {isStripeLoading && (
+        <div className="rounded-md bg-blue-50 p-3 text-sm text-blue-700">
+          Initializing payment form...
+        </div>
+      )}
+
       <div className="flex gap-3">
         <button
           type="button"
           onClick={onCancel}
-          disabled={isLoading || isSaving}
+          disabled={isLoading || isSaving || isStripeLoading}
           className="flex-1 rounded-md border border-gray-300 px-4 py-2 text-gray-700 hover:bg-gray-50 disabled:opacity-50"
         >
           Cancel
         </button>
         <button
           type="submit"
-          disabled={!stripe || isLoading || isSaving}
+          disabled={!stripe || !elements || isLoading || isSaving}
           className="flex-1 rounded-md bg-blue-600 px-4 py-2 text-white hover:bg-blue-700 disabled:opacity-50"
         >
           {isLoading || isSaving ? 'Saving...' : 'Save card'}

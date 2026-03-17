@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Navbar } from '@/components/Navbar';
 import { SetupIntentForm } from '@/components/stripe/SetupIntentForm';
 import { StripeProvider } from '@/components/stripe/StripeProvider';
-import { getStripe } from '@/lib/stripe-client';
+import { getStripe, isStripeConfigured } from '@/lib/stripe-client';
 import { useCreateSetupIntentMutation } from '@/store/api';
 import Link from 'next/link';
 
@@ -14,14 +14,25 @@ export default function AddPaymentMethodPage() {
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [createSetupIntent, { isLoading: creatingIntent, error }] = useCreateSetupIntentMutation();
   const [setupComplete, setSetupComplete] = useState(false);
+  const [stripeConfigError, setStripeConfigError] = useState<string | null>(null);
+
+  // Check Stripe configuration on mount
+  useEffect(() => {
+    if (!isStripeConfigured()) {
+      setStripeConfigError('Stripe is not properly configured. Please check your environment variables.');
+      return;
+    }
+  }, []);
 
   // Auto-create setup intent when page loads
   useEffect(() => {
+    if (stripeConfigError) return; // Don't create intent if config is broken
+
     createSetupIntent()
       .unwrap()
       .then(result => setClientSecret(result.clientSecret))
       .catch(err => console.error('Failed to create setup intent:', err));
-  }, [createSetupIntent]);
+  }, [createSetupIntent, stripeConfigError]);
 
   const handleSetupSuccess = () => {
     setSetupComplete(true);
@@ -52,6 +63,12 @@ export default function AddPaymentMethodPage() {
         <p className="text-gray-600 mb-8">
           Add a new payment method to your account. Your payment information is securely handled by Stripe.
         </p>
+
+        {stripeConfigError && (
+          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-6">
+            {stripeConfigError}
+          </div>
+        )}
 
         {error && (
           <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-6">
