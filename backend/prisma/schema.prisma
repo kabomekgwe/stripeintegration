@@ -79,7 +79,7 @@ model PaymentRecord {
   id                      String        @id @default(cuid())
   userId                  String
   stripePaymentIntentId   String        @unique
-  amount                  Int           // cents, amount before tax
+  amount                  Int           // cents
   taxAmount               Int?          // cents, tax amount
   taxRate                 Float?        // percentage
   taxDisplayName          String?       // e.g., "VAT", "GST", "Sales Tax"

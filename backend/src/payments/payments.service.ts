@@ -11,7 +11,6 @@ import { CacheService } from '../cache/cache.service';
 import { MailService } from '../mail/mail.service';
 import { TaxService } from '../tax/tax.service';
 import { CurrencyService } from '../currency/currency.service';
-import { PricingService } from '../pricing/pricing.service';
 import { ConfigService } from '@nestjs/config';
 import { PaymentEntity } from './entities/payment.entity';
 import { CreateRefundDto } from './dto/create-refund.dto';
@@ -58,7 +57,6 @@ export class PaymentsService {
     private readonly configService: ConfigService,
     private readonly taxService: TaxService,
     private readonly currencyService: CurrencyService,
-    private readonly pricingService: PricingService,
   ) {}
 
   async createPaymentIntent(params: {
@@ -78,7 +76,7 @@ export class PaymentsService {
       };
     };
     countryCode?: string;
-  }): Promise<{ clientSecret: string; paymentIntentId: string; taxAmount: number }> {
+  }): Promise<{ clientSecret: string; paymentIntentId: string; taxAmount: number } > {
     // Validate currency
     const currencyValidation = this.currencyService.validateAmount(
       params.amount,
@@ -89,7 +87,6 @@ export class PaymentsService {
     }
 
     const amount = params.amount;
-    const countryCode = params.countryCode || params.customerDetails?.address?.country || 'US';
 
     // Determine payment method
     let paymentMethodStripeId: string | undefined;
@@ -165,7 +162,6 @@ export class PaymentsService {
         taxRate: taxRate.toString(),
         amount: amount.toString(),
         currency: params.currency,
-        countryCode: countryCode,
       },
       idempotencyKey,
     });
@@ -237,7 +233,7 @@ export class PaymentsService {
 
     // Send email notification based on status
     const frontendUrl = this.configService.get('FRONTEND_URL') || 'http://localhost:3000';
-    
+
     if (stripePi.status === 'succeeded') {
       await this.mailService.sendPaymentReceipt(
         record.user.email,

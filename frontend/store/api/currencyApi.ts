@@ -4,12 +4,11 @@ import { baseApi } from './baseApi';
  * Currency API
  *
  * Endpoints for currency conversion and exchange rates.
- * 
+ *
  * Cache Strategy:
  * - getCurrencies: Persist (static data, rarely changes)
  * - detectCurrency: Persist (IP-based, same per session)
  * - convertCurrency: Persist (rates cached until invalidated)
- * - validatePromoCode: Persist (promo codes don't change often)
  */
 export const currencyApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
@@ -52,22 +51,6 @@ export const currencyApi = baseApi.injectEndpoints({
         `/currency/convert?amount=${amount}&from=${from}&to=${to}`,
       // Data persists until manually invalidated
     }),
-
-    validatePromoCode: builder.query<{
-      valid: boolean;
-      code?: string;
-      name?: string;
-      description?: string;
-      percentOff?: number;
-      amountOff?: number;
-      currency?: string;
-      duration?: string;
-      durationInMonths?: number;
-      error?: string;
-    }, string>({
-      query: (code) => `/promo-codes/validate/${code}`,
-      // Data persists until manually invalidated
-    }),
   }),
 });
 
@@ -75,5 +58,4 @@ export const {
   useGetCurrenciesQuery,
   useDetectCurrencyQuery,
   useConvertCurrencyQuery,
-  useValidatePromoCodeQuery,
 } = currencyApi;

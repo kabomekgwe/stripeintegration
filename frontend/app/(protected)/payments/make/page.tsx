@@ -50,7 +50,7 @@ export default function MakePaymentPage() {
   const [paymentCreated, setPaymentCreated] = useState(false);
   const [detectedCurrency, setDetectedCurrency] = useState<string | null>(null);
   const [showDetectionNotice, setShowDetectionNotice] = useState(false);
-  
+
   const { data: paymentMethodsData } = useGetPaymentMethodsQuery();
   const [createPaymentIntent, { isLoading: creating, error: createError }] = useCreatePaymentIntentMutation();
 
@@ -87,7 +87,7 @@ export default function MakePaymentPage() {
   const hasPaymentMethods = (paymentMethodsData?.paymentMethods?.length || 0) > 0;
   const currencies = currenciesData?.currencies || [];
   const currencySymbol = currencySymbols[currency] || '$';
-  const usdEquivalent = conversionData?.converted?.amount 
+  const usdEquivalent = conversionData?.converted?.amount
     ? (conversionData.converted.amount / 100).toFixed(2)
     : null;
 
@@ -101,7 +101,7 @@ export default function MakePaymentPage() {
         currency,
         description: description || 'Payment',
       }).unwrap();
-      
+
       setClientSecret(result.clientSecret);
       setPaymentIntentId(result.paymentIntentId);
       setPaymentCreated(true);
@@ -206,11 +206,11 @@ export default function MakePaymentPage() {
             <div className="flex items-center gap-2">
               <span className="text-lg">🌍</span>
               <span>
-                We've detected you're in a region that uses {detectedCurrency.toUpperCase()}. 
+                We've detected you're in a region that uses {detectedCurrency.toUpperCase()}.
                 Currency set to {currencyFlags[detectedCurrency]} {detectedCurrency.toUpperCase()}.
               </span>
             </div>
-            <button 
+            <button
               onClick={handleDismissDetection}
               className="text-blue-600 hover:text-blue-800 text-sm"
             >
@@ -289,7 +289,7 @@ export default function MakePaymentPage() {
                 />
               </div>
               <p className="text-sm text-gray-500 mt-1">Minimum: {currencySymbol}0.50</p>
-              
+
               {/* USD Equivalent Display */}
               {amount > 0 && currency !== 'usd' && usdEquivalent && (
                 <p className="text-sm text-blue-600 mt-1">
@@ -321,27 +321,30 @@ export default function MakePaymentPage() {
                   {amount > 0 ? `${currencySymbol}${amount.toFixed(2)}` : '-'} {currency.toUpperCase()}
                 </span>
               </div>
+
               <div className="flex justify-between text-sm mt-1">
                 <span className="text-gray-600">Tax</span>
                 <span className="text-gray-500">Calculated at checkout</span>
               </div>
-              
-              {/* USD Equivalent in Summary */}
+
+              {/* USD Equivalent */}
               {amount > 0 && currency !== 'usd' && usdEquivalent && (
                 <div className="flex justify-between text-sm mt-1 text-blue-600">
                   <span>≈ USD Equivalent</span>
                   <span>${usdEquivalent}</span>
                 </div>
               )}
-              
+
               <hr className="my-2 border-gray-200" />
               <div className="flex justify-between font-semibold">
                 <span>Total</span>
                 <span>
-                  {amount > 0 ? `${currencySymbol}${amount.toFixed(2)}` : '-'} {currency.toUpperCase()}
+                  {amount > 0
+                    ? `${currencySymbol}${amount.toFixed(2)}`
+                    : '-'} {currency.toUpperCase()}
                 </span>
               </div>
-              
+
               {/* USD Total Equivalent */}
               {amount > 0 && currency !== 'usd' && usdEquivalent && (
                 <div className="flex justify-between text-sm text-blue-600 mt-1">

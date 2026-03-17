@@ -36,7 +36,7 @@ export class CreatePaymentDto {
   amount: number; // in cents
 
   @IsString()
-  @IsIn(['usd', 'eur', 'gbp'])
+  @IsIn(['usd', 'eur', 'gbp', 'cad', 'aud', 'jpy', 'zar'])
   currency: string = 'usd';
 
   @IsOptional()

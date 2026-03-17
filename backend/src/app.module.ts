@@ -18,7 +18,6 @@ import { AdminModule } from './admin/admin.module';
 import { SubscriptionModule } from './subscriptions/subscription.module';
 import { CustomerPortalModule } from './customer-portal/customer-portal.module';
 import { CurrencyModule } from './currency/currency.module';
-import { PromoCodeModule } from './promo-codes/promo-code.module';
 import { UsageSubscriptionModule } from './usage-subscriptions/usage-subscription.module';
 import { DisputeModule } from './disputes/dispute.module';
 import { ConnectModule } from './connect/connect.module';
@@ -51,7 +50,6 @@ import { PricingModule } from './pricing/pricing.module';
     SubscriptionModule,
     CustomerPortalModule,
     CurrencyModule,
-    PromoCodeModule,
     UsageSubscriptionModule,
     DisputeModule,
     ConnectModule,

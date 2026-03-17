@@ -11,7 +11,7 @@ export class PricingController {
   @Get('preview')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Get pricing preview with PPP discount' })
+  @ApiOperation({ summary: 'Get pricing preview' })
   @ApiQuery({ name: 'amount', description: 'Amount in cents', required: true })
   @ApiQuery({ name: 'currency', description: 'Currency code', required: false })
   @ApiQuery({ name: 'country', description: 'Country code (ISO 3166-1 alpha-2)', required: false })
@@ -26,31 +26,5 @@ export class PricingController {
     const currencyCode = currency || 'usd';
 
     return this.pricingService.getPricingPreview(amountCents, countryCode, currencyCode);
-  }
-
-  @Get('tiers')
-  @ApiOperation({ summary: 'Get all pricing tiers' })
-  async getPricingTiers() {
-    return {
-      tiers: this.pricingService.getAllTiers(),
-      description: 'PPP pricing tiers based on World Bank income classifications',
-    };
-  }
-
-  @Get('country')
-  @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
-  @ApiOperation({ summary: 'Get pricing tier for user country' })
-  async getCountryPricing(@Request() req: any) {
-    const countryCode = req.user?.country || 'US';
-    const tier = this.pricingService.getTierForCountry(countryCode);
-    const hasDiscount = this.pricingService.hasDiscount(countryCode);
-
-    return {
-      country: countryCode,
-      tier,
-      hasDiscount,
-      discountPercent: this.pricingService.getDiscountPercent(countryCode),
-    };
   }
 }
