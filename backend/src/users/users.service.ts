@@ -2,8 +2,11 @@ import {
   Injectable,
   ConflictException,
   NotFoundException,
+  InternalServerErrorException,
+  Logger,
 } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
+import Stripe from 'stripe';
 import { PrismaService } from '../database/prisma.service';
 import { StripeService } from '../stripe/stripe.service';
 import { CacheService } from '../cache/cache.service';
@@ -14,6 +17,8 @@ import { Prisma } from '@prisma/client';
 
 @Injectable()
 export class UsersService {
+  private readonly logger = new Logger(UsersService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly stripeService: StripeService,
@@ -34,10 +39,37 @@ export class UsersService {
     const hashedPassword = await bcrypt.hash(createUserDto.password, 10);
 
     // Create Stripe customer first (DB is source of truth, but we need stripeCustomerId)
-    const stripeCustomer = await this.stripeService.createCustomer(
-      createUserDto.email,
-      createUserDto.name,
-    );
+    let stripeCustomer: Stripe.Customer;
+    try {
+      stripeCustomer = await this.stripeService.createCustomer(
+        createUserDto.email,
+        createUserDto.name,
+      );
+    } catch (error) {
+      // Handle Stripe-specific errors
+      if (error instanceof Stripe.errors.StripeError) {
+        this.logger.error('Stripe customer creation failed', {
+          email: createUserDto.email,
+          errorType: error.type,
+          errorCode: error.code,
+          message: error.message,
+        });
+
+        // Determine user-friendly error message
+        const isDev = process.env.NODE_ENV !== 'production';
+        const errorMessage = isDev
+          ? `Payment setup failed: ${error.message}`
+          : 'Payment setup failed. Please try again or contact support.';
+
+        throw new InternalServerErrorException(errorMessage, {
+          cause: error,
+          description: isDev
+            ? `Stripe error: ${error.type}${error.code ? ` (${error.code})` : ''}`
+            : undefined,
+        });
+      }
+      throw error;
+    }
 
     // Create user in DB with stripeCustomerId
     const user = await this.prisma.user.create({

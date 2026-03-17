@@ -3,6 +3,7 @@
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useGetMeQuery } from '@/store/api';
+import { AppLayout } from '@/components/layout/sidebar';
 import { Navbar } from '@/components/Navbar';
 
 export default function DashboardLayout({
@@ -32,11 +33,9 @@ export default function DashboardLayout({
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <AppLayout>
       <Navbar />
-      <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
-        {children}
-      </main>
-    </div>
+      {children}
+    </AppLayout>
   );
 }

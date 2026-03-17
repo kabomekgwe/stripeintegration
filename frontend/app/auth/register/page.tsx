@@ -6,6 +6,8 @@ import { useRouter } from 'next/navigation';
 import { useRegisterMutation } from '@/store/api';
 import { setCredentials } from '@/store/authSlice';
 import { useDispatch } from 'react-redux';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 
 const countries = [
   { code: 'US', name: 'United States', flag: '🇺🇸' },
@@ -37,15 +39,15 @@ export default function RegisterPage() {
   const [country, setCountry] = useState('');
   const router = useRouter();
   const dispatch = useDispatch();
-  
+
   const [register, { isLoading, error }] = useRegisterMutation();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const result = await register({ 
-        email, 
-        password, 
+      const result = await register({
+        email,
+        password,
         name: name || undefined,
         country: country || undefined,
       }).unwrap();
@@ -57,61 +59,56 @@ export default function RegisterPage() {
   };
 
   return (
-    <div className="rounded-lg bg-white p-8 shadow-md">
+    <div className="rounded-lg bg-card p-8 shadow-md">
       <div className="text-center">
-        <h1 className="text-2xl font-bold">Create account</h1>
-        <p className="mt-2 text-gray-600">Get started with Stripe Payments</p>
+        <h1 className="text-2xl font-bold text-foreground">Create account</h1>
+        <p className="mt-2 text-muted-foreground">Get started with Stripe Payments</p>
       </div>
 
       <form onSubmit={handleSubmit} className="mt-6 space-y-4">
         <div>
-          <label className="block text-sm font-medium text-gray-700">
-            Name (optional)
-          </label>
-          <input
+          <Label htmlFor="name">Name (optional)</Label>
+          <Input
+            id="name"
             type="text"
             value={name}
             onChange={(e) => setName(e.target.value)}
-            className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none"
+            className="mt-1"
           />
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700">
-            Email
-          </label>
-          <input
+          <Label htmlFor="email">Email</Label>
+          <Input
+            id="email"
             type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             required
-            className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none"
+            className="mt-1"
           />
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700">
-            Password
-          </label>
-          <input
+          <Label htmlFor="password">Password</Label>
+          <Input
+            id="password"
             type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
             minLength={8}
-            className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none"
+            className="mt-1"
           />
         </div>
 
         <div>
-          <label htmlFor="country" className="block text-sm font-medium text-gray-700 mb-1">
-            Country (Optional)
-          </label>
+          <Label htmlFor="country">Country (Optional)</Label>
           <select
             id="country"
             value={country}
             onChange={(e) => setCountry(e.target.value)}
-            className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none bg-white"
+            className="mt-1 flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
           >
             <option value="">Select your country</option>
             {countries.map((c) => (
@@ -120,14 +117,14 @@ export default function RegisterPage() {
               </option>
             ))}
           </select>
-          <p className="text-sm text-gray-500 mt-1">
+          <p className="text-sm text-muted-foreground mt-1">
             We'll suggest the best currency for your region
           </p>
         </div>
 
         {error && (
-          <div className="rounded-md bg-red-50 p-3 text-sm text-red-700">
-            {'data' in error 
+          <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
+            {'data' in error
               ? (error.data as { message?: string })?.message || 'Registration failed'
               : 'An error occurred'}
           </div>
@@ -136,15 +133,15 @@ export default function RegisterPage() {
         <button
           type="submit"
           disabled={isLoading}
-          className="w-full rounded-md bg-blue-600 px-4 py-2 text-white hover:bg-blue-700 disabled:opacity-50"
+          className="w-full rounded-md bg-primary px-4 py-2 text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
         >
           {isLoading ? 'Creating account...' : 'Create account'}
         </button>
       </form>
 
-      <p className="mt-4 text-center text-sm text-gray-600">
+      <p className="mt-4 text-center text-sm text-muted-foreground">
         Already have an account?{' '}
-        <Link href="/auth/login" className="text-blue-600 hover:underline">
+        <Link href="/auth/login" className="text-primary hover:underline">
           Sign in
         </Link>
       </p>

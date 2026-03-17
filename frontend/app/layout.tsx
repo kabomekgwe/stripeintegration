@@ -2,6 +2,7 @@ import { Geist, Geist_Mono, Inter } from 'next/font/google';
 import './globals.css';
 import { ThemeProvider } from '@/components/theme-provider';
 import { StoreProvider } from '@/components/StoreProvider';
+import { ToastProvider } from '@/components/providers/toast-provider';
 import { cn } from '@/lib/utils';
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-sans' });
@@ -13,7 +14,7 @@ const fontMono = Geist_Mono({
 
 /**
  * Root Layout - Server Component
- * 
+ *
  * This is a Server Component that wraps the application.
  * Client-side providers (Redux) are loaded via StoreProvider.
  */
@@ -30,7 +31,10 @@ export default function RootLayout({
     >
       <body>
         <StoreProvider>
-          <ThemeProvider>{children}</ThemeProvider>
+          <ThemeProvider>
+            <ToastProvider />
+            {children}
+          </ThemeProvider>
         </StoreProvider>
       </body>
     </html>

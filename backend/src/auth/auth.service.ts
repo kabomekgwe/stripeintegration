@@ -3,6 +3,8 @@ import {
   UnauthorizedException,
   ConflictException,
   NotFoundException,
+  InternalServerErrorException,
+  Logger,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { UsersService } from '../users/users.service';
@@ -18,6 +20,9 @@ import * as bcrypt from 'bcrypt';
 
 @Injectable()
 export class AuthService {
+  private readonly logger = new Logger(AuthService.name);
+  private readonly isDev = process.env.NODE_ENV !== 'production';
+
   constructor(
     private readonly usersService: UsersService,
     private readonly jwtService: JwtService,
@@ -48,10 +53,47 @@ export class AuthService {
 
       return { user, accessToken };
     } catch (error) {
+      // Re-throw known NestJS exceptions as-is
       if (error instanceof ConflictException) {
         throw error;
       }
-      throw new Error('Registration failed');
+      if (error instanceof UnauthorizedException) {
+        throw error;
+      }
+      if (error instanceof NotFoundException) {
+        throw error;
+      }
+      if (error instanceof InternalServerErrorException) {
+        throw error;
+      }
+
+      // Log the actual error with full context for debugging
+      this.logger.error('Registration failed', {
+        email: registerDto.email,
+        errorName: error instanceof Error ? error.constructor.name : 'Unknown',
+        errorMessage: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+      });
+
+      // In development mode, include detailed error info for debugging
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error';
+
+      if (this.isDev) {
+        // Development: Include error details in response for debugging
+        throw new InternalServerErrorException(
+          `Registration failed: ${errorMessage}`,
+          {
+            cause: error,
+            description: error instanceof Error ? error.stack : String(error),
+          },
+        );
+      }
+
+      // Production: Hide implementation details
+      throw new InternalServerErrorException(
+        'Registration failed. Please try again later.',
+      );
     }
   }
 
