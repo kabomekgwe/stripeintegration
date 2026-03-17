@@ -33,7 +33,7 @@ export class MailService {
 
     if (!smtpHost || !smtpUser || !smtpPass) {
       this.logger.warn('SMTP not configured - emails will be logged only');
-      this.transporter = null as any;
+      this.transporter = null;
     } else {
       this.transporter = nodemailer.createTransport({
         host: smtpHost,
