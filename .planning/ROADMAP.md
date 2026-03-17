@@ -154,12 +154,33 @@
 4. Critical UI components tested
 5. E2E tests for payment flow
 
-**Key Tasks:**
-- Set up Swagger/OpenAPI
-- Document all endpoints
-- Set up React Testing Library
-- Write component tests
-- Add Playwright E2E tests
+**Plans:** 3 plans in 2 waves
+
+**Wave Structure:**
+| Wave | Plans | Description |
+|------|-------|-------------|
+| 1 | 04-01, 04-02 | Swagger documentation + Frontend testing infrastructure (parallel) |
+| 2 | 04-03 | Component tests & E2E tests (depends on 04-02) |
+
+**Plan Details:**
+
+### 04-01: Swagger/OpenAPI Documentation [PLANNED]
+- **Requirements:** DOC-01, DOC-02, DOC-03
+- **Files:** backend/src/main.ts, backend/src/**/*.controller.ts
+- **Objective:** Set up Swagger and document all API endpoints with request/response examples
+- **Depends on:** None (parallel with 04-02)
+
+### 04-02: Frontend Testing Infrastructure [PLANNED]
+- **Requirements:** FTEST-01
+- **Files:** frontend/vitest.config.ts, frontend/src/test/setup.ts, frontend/src/test/utils.tsx
+- **Objective:** Set up Vitest + React Testing Library with test utilities
+- **Depends on:** None (parallel with 04-01)
+
+### 04-03: Component & E2E Tests [PLANNED]
+- **Requirements:** FTEST-02, FTEST-03
+- **Files:** frontend/src/components/**/*.test.tsx, frontend/e2e/*.spec.ts
+- **Objective:** Write component tests for critical UI and E2E tests for payment/auth flows
+- **Depends on:** 04-02
 
 ---
 
