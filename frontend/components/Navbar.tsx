@@ -5,7 +5,7 @@ import { useLogoutMutation, useGetMeQuery, useGetCurrenciesQuery, useUpdatePrefe
 import { clearCredentials } from '@/store/authSlice';
 import { useDispatch } from 'react-redux';
 import { useRouter } from 'next/navigation';
-import { Button } from '@/components/ui/button';
+
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -13,6 +13,7 @@ import {
   DropdownMenuTrigger,
   DropdownMenuSeparator,
   DropdownMenuLabel,
+  DropdownMenuGroup,
 } from '@/components/ui/dropdown-menu';
 import { UserIcon, SignOutIcon, GlobeIcon } from '@phosphor-icons/react';
 
@@ -70,21 +71,19 @@ export function Navbar() {
             {/* Currency Switcher */}
             {user && (
               <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="gap-1"
-                    aria-label={`Select currency, current: ${currentCurrency.toUpperCase()}`}
-                  >
-                    <span className="text-lg" aria-hidden="true">
-                      {currencyFlags[currentCurrency] || '💰'}
-                    </span>
-                    <span className="uppercase">{currentCurrency}</span>
-                  </Button>
+                <DropdownMenuTrigger
+                  className="group/button inline-flex h-7 shrink-0 items-center justify-center gap-1 rounded-[min(var(--radius-md),12px)] border border-transparent bg-clip-padding px-2.5 text-[0.8rem] font-medium whitespace-nowrap transition-all outline-none select-none hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 active:translate-y-px disabled:pointer-events-none disabled:opacity-50 dark:hover:bg-muted/50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-3.5"
+                  aria-label={`Select currency, current: ${currentCurrency.toUpperCase()}`}
+                >
+                  <span className="text-lg" aria-hidden="true">
+                    {currencyFlags[currentCurrency] || '💰'}
+                  </span>
+                  <span className="uppercase">{currentCurrency}</span>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
-                  <DropdownMenuLabel>Select Currency</DropdownMenuLabel>
+                  <DropdownMenuGroup>
+                    <DropdownMenuLabel>Select Currency</DropdownMenuLabel>
+                  </DropdownMenuGroup>
                   {currencies.map((currency: { code: string; name: string }) => (
                     <DropdownMenuItem
                       key={currency.code}
@@ -111,25 +110,23 @@ export function Navbar() {
             {/* User Menu */}
             {user && (
               <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    aria-label="User menu"
-                    className="focus-visible:ring-2 focus-visible:ring-ring"
-                  >
-                    <UserIcon className="h-5 w-5" weight="regular" />
-                  </Button>
+                <DropdownMenuTrigger
+                  className="group/button inline-flex size-8 shrink-0 items-center justify-center rounded-lg border border-transparent bg-clip-padding text-sm font-medium whitespace-nowrap transition-all outline-none select-none hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 active:translate-y-px disabled:pointer-events-none disabled:opacity-50 dark:hover:bg-muted/50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4"
+                  aria-label="User menu"
+                >
+                  <UserIcon className="h-5 w-5" weight="regular" />
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
-                  <DropdownMenuLabel>
-                    <div className="flex flex-col">
-                      <span className="font-medium">{user.email}</span>
-                      <span className="text-xs text-muted-foreground capitalize">
-                        {user.role?.toLowerCase()}
-                      </span>
-                    </div>
-                  </DropdownMenuLabel>
+                  <DropdownMenuGroup>
+                    <DropdownMenuLabel>
+                      <div className="flex flex-col">
+                        <span className="font-medium">{user.email}</span>
+                        <span className="text-xs text-muted-foreground capitalize">
+                          {user.role?.toLowerCase()}
+                        </span>
+                      </div>
+                    </DropdownMenuLabel>
+                  </DropdownMenuGroup>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={() => router.push('/settings')}>
                     Settings

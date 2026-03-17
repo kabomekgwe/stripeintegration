@@ -247,6 +247,97 @@ export class StripeService {
   }
 
   /**
+   * Get enabled payment method types for the account
+   * Fetches from Stripe Account API to get actual enabled payment methods
+   * based on account capabilities
+   */
+  async getEnabledPaymentMethods(): Promise<{
+    paymentMethodTypes: string[];
+    paymentMethodConfigurations: Record<string, { enabled: boolean }>;
+  }> {
+    try {
+      // Retrieve account to get capabilities (enabled payment methods)
+      // 'self' retrieves the account associated with the API key
+      console.log(await this.stripe.paymentMethodConfigurations.list({limit: 100}))
+      const account = await this.stripe.accounts.retrieve('self');
+      
+      const paymentMethodTypes: string[] = [];
+      const paymentMethodConfigurations: Record<string, { enabled: boolean }> = {};
+
+      // Map account capabilities to payment method types
+      // Capabilities are returned as 'active', 'pending', or 'inactive'
+      const capabilities = account.capabilities || {};
+      
+      const capabilityToPaymentMethod: Record<string, string> = {
+        card_payments: 'card',
+        us_bank_account_ach_payments: 'us_bank_account',
+        sepa_debit_payments: 'sepa_debit',
+        au_becs_debit_payments: 'au_becs_debit',
+        bacs_debit_payments: 'bacs_debit',
+        bancontact_payments: 'bancontact',
+        ideal_payments: 'ideal',
+        giropay_payments: 'giropay',
+        eps_payments: 'eps',
+        p24_payments: 'p24',
+        sofort_payments: 'sofort',
+        link_payments: 'link',
+        affirm_payments: 'affirm',
+        afterpay_clearpay_payments: 'afterpay_clearpay',
+        klarna_payments: 'klarna',
+        wechat_pay_payments: 'wechat_pay',
+        alipay_payments: 'alipay',
+        acss_debit_payments: 'acss_debit',
+        blik_payments: 'blik',
+        customer_balance_payments: 'customer_balance',
+        fpx_payments: 'fpx',
+        grabpay_payments: 'grabpay',
+        interac_payments: 'interac',
+        oxxo_payments: 'oxxo',
+        pix_payments: 'pix',
+        promptpay_payments: 'promptpay',
+        revolut_pay_payments: 'revolut_pay',
+        swish_payments: 'swish',
+        twint_payments: 'twint',
+        zip_payments: 'zip',
+      };
+
+      console.log('capppp', capabilities)
+
+      // Always include card if card_payments capability exists or as default
+      if (capabilities.card_payments === 'active' || !capabilities.card_payments) {
+        paymentMethodTypes.push('card');
+        paymentMethodConfigurations.card = { enabled: true };
+      }
+
+      // Map other capabilities to payment methods
+      for (const [capability, paymentMethod] of Object.entries(capabilityToPaymentMethod)) {
+        if (capability !== 'card_payments' && capabilities[capability] === 'active') {
+          paymentMethodTypes.push(paymentMethod);
+          paymentMethodConfigurations[paymentMethod] = { enabled: true };
+        }
+      }
+
+      // If no payment methods found, default to card
+      if (paymentMethodTypes.length === 0) {
+        paymentMethodTypes.push('card');
+        paymentMethodConfigurations.card = { enabled: true };
+      }
+
+      return {
+        paymentMethodTypes,
+        paymentMethodConfigurations,
+      };
+    } catch (error) {
+      this.logger.warn('Could not retrieve account capabilities, using defaults', error);
+      // Return defaults if API fails
+      return {
+        paymentMethodTypes: ['card'],
+        paymentMethodConfigurations: { card: { enabled: true } },
+      };
+    }
+  }
+
+  /**
    * Get exchange rates from Stripe
    * Returns rates relative to USD
    */

@@ -116,7 +116,7 @@ export function isRetryableStripeError(error: unknown): boolean {
 
   // Rate limit and connection errors are retryable
   if (error instanceof Stripe.errors.StripeRateLimitError) return true;
-  if (error instanceof Stripe.errors.StripeAPIConnectionError) return true;
+  if (error instanceof Stripe.errors.StripeConnectionError) return true;
 
   // Some API errors are retryable (temporary issues)
   if (error instanceof Stripe.errors.StripeAPIError) {
@@ -186,7 +186,7 @@ export function stripeErrorToDetail(error: Stripe.errors.StripeError): PaymentEr
   }
 
   // API connection errors
-  if (error instanceof Stripe.errors.StripeAPIConnectionError) {
+  if (error instanceof Stripe.errors.StripeConnectionError) {
     return {
       code: 'API_CONNECTION_ERROR',
       message: error.message,
@@ -282,7 +282,7 @@ export function logStripeError(
   // Rate limits and connection issues are warnings (transient)
   if (
     error instanceof Stripe.errors.StripeRateLimitError ||
-    error instanceof Stripe.errors.StripeAPIConnectionError
+    error instanceof Stripe.errors.StripeConnectionError
   ) {
     logger.warn('Stripe transient error', logData);
     return;

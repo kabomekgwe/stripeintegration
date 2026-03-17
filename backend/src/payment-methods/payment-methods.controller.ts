@@ -12,19 +12,30 @@ import {
 } from '@nestjs/common';
 import { PaymentMethodsService } from './payment-methods.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { StripeService } from '../stripe/stripe.service';
 
 @Controller('payment-methods')
-@UseGuards(JwtAuthGuard)
 export class PaymentMethodsController {
-  constructor(private readonly paymentMethodsService: PaymentMethodsService) {}
+  constructor(
+    private readonly paymentMethodsService: PaymentMethodsService,
+    private readonly stripeService: StripeService,
+  ) {}
 
   @Get()
+  @UseGuards(JwtAuthGuard)
   async findAll(@Request() req) {
     const methods = await this.paymentMethodsService.findByUser(req.user.id);
     return { paymentMethods: methods };
   }
 
+  @Get('enabled')
+  async getEnabledPaymentMethods() {
+    const enabled = await this.stripeService.getEnabledPaymentMethods();
+    return { paymentMethodConfigurations: enabled.paymentMethodConfigurations };
+  }
+
   @Post('setup-intent')
+  @UseGuards(JwtAuthGuard)
   async createSetupIntent(@Request() req) {
     const result = await this.paymentMethodsService.createSetupIntent(
       req.user.id,
@@ -34,6 +45,7 @@ export class PaymentMethodsController {
   }
 
   @Post('save')
+  @UseGuards(JwtAuthGuard)
   @HttpCode(HttpStatus.CREATED)
   async savePaymentMethod(
     @Request() req,
@@ -48,12 +60,14 @@ export class PaymentMethodsController {
   }
 
   @Post(':id/default')
+  @UseGuards(JwtAuthGuard)
   async setDefault(@Request() req, @Param('id') id: string) {
     const method = await this.paymentMethodsService.setDefault(req.user.id, id);
     return { paymentMethod: method };
   }
 
   @Delete(':id')
+  @UseGuards(JwtAuthGuard)
   async remove(@Request() req, @Param('id') id: string) {
     const method = await this.paymentMethodsService.remove(req.user.id, id);
     return { paymentMethod: method };

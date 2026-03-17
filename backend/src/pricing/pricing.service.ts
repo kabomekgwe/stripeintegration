@@ -1,6 +1,8 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PricingTierDto, PricingCalculationDto, PricingPreviewDto } from './dto/pricing.dto';
 
+export { PricingPreviewDto };
+
 /**
  * PPP (Purchasing Power Parity) Pricing Service
  *

@@ -18,6 +18,17 @@ export const paymentMethodsApi = baseApi.injectEndpoints({
       // Data persists until 'PaymentMethods' tag is invalidated
     }),
 
+    getEnabledPaymentMethods: builder.query<{
+      paymentMethodConfigurations: Array<{
+        id: string;
+        displayName: string;
+        parent?: string;
+        active: boolean;
+      }>;
+    }, void>({
+      query: () => '/payment-methods/enabled',
+    }),
+
     createSetupIntent: builder.mutation<SetupIntentResponse, void>({
       query: () => ({
         url: '/payment-methods/setup-intent',
@@ -54,6 +65,7 @@ export const paymentMethodsApi = baseApi.injectEndpoints({
 
 export const {
   useGetPaymentMethodsQuery,
+  useGetEnabledPaymentMethodsQuery,
   useCreateSetupIntentMutation,
   useSavePaymentMethodMutation,
   useSetDefaultPaymentMethodMutation,
