@@ -1,4 +1,4 @@
-import { IsInt, IsString, IsOptional, Min, IsIn, ValidateNested } from 'class-validator';
+import { IsInt, IsString, IsOptional, Min, ValidateNested } from 'class-validator';
 import { Type } from 'class-transformer';
 
 class AddressDto {
@@ -36,8 +36,7 @@ export class CreatePaymentDto {
   amount: number; // in cents
 
   @IsString()
-  @IsIn(['usd', 'eur', 'gbp', 'cad', 'aud', 'jpy', 'zar'])
-  currency: string = 'usd';
+  currency: string = 'gbp';
 
   @IsOptional()
   @IsString()

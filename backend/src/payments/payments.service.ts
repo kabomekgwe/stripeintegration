@@ -77,15 +77,6 @@ export class PaymentsService {
     };
     countryCode?: string;
   }): Promise<{ clientSecret: string; paymentIntentId: string; taxAmount: number } > {
-    // Validate currency
-    const currencyValidation = this.currencyService.validateAmount(
-      params.amount,
-      params.currency,
-    );
-    if (!currencyValidation.valid) {
-      throw new BadRequestException(currencyValidation.error);
-    }
-
     const amount = params.amount;
 
     // Determine payment method
@@ -203,6 +194,61 @@ export class PaymentsService {
     return result;
   }
 
+  async createCheckoutSession(params: {
+    userId: string;
+    stripeCustomerId: string;
+    amount: number;
+    currency: string;
+    description?: string;
+    returnUrl: string;
+  }): Promise<{ clientSecret: string; sessionId: string }> {
+    const idempotencyKey = uuidv4();
+
+    // Check idempotency
+    const cached = await this.redisService.checkIdempotency(idempotencyKey);
+    if (cached.exists) {
+      return cached.response;
+    }
+
+    const session = await this.stripeService.createCheckoutSession({
+      amount: params.amount,
+      currency: params.currency,
+      customerId: params.stripeCustomerId,
+      description: params.description,
+      returnUrl: params.returnUrl,
+      metadata: {
+        userId: params.userId,
+        internalPaymentId: idempotencyKey,
+        amount: params.amount.toString(),
+        currency: params.currency,
+      },
+      idempotencyKey,
+    });
+
+    // Create a pending DB record so we have a reference before the customer pays
+    await this.prisma.paymentRecord.create({
+      data: {
+        userId: params.userId,
+        // Store the session ID in stripePaymentIntentId temporarily;
+        // it will be updated to the real PaymentIntent ID on webhook confirmation.
+        stripePaymentIntentId: session.id,
+        amount: params.amount,
+        currency: params.currency,
+        status: PaymentStatus.PENDING,
+        description: params.description,
+        metadata: session.metadata as Prisma.InputJsonValue,
+      },
+    });
+
+    if (!session.client_secret) {
+      throw new Error('Checkout Session did not return a client_secret');
+    }
+
+    const result = { clientSecret: session.client_secret, sessionId: session.id };
+    await this.redisService.setIdempotency(idempotencyKey, result);
+    return result;
+  }
+
   async confirmPayment(
     paymentIntentId: string,
     userId: string,
@@ -284,7 +330,7 @@ export class PaymentsService {
     if (payment) {
       const entity = this.toEntity(payment);
       // Cache for 2 minutes (120 seconds)
-      await this.cacheService.set(cacheKey, entity, 120);
+      await this.cacheService.set(cacheKey, entity, { ttlSeconds: 120 });
       return entity;
     }
 

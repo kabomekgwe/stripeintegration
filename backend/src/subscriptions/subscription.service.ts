@@ -71,7 +71,7 @@ export class SubscriptionService {
     if (plan) {
       const result = plan as PlanWithPrices;
       // Cache for 5 minutes (300 seconds) - plans don't change often
-      await this.cacheService.set(cacheKey, result, 300);
+      await this.cacheService.set(cacheKey, result, { ttlSeconds: 300 });
       return result;
     }
 
@@ -199,7 +199,7 @@ export class SubscriptionService {
 
     if (subscription) {
       // Cache for 1 minute (60 seconds) - subscription data changes frequently
-      await this.cacheService.set(cacheKey, subscription, 60);
+      await this.cacheService.set(cacheKey, subscription, { ttlSeconds: 60 });
     }
 
     return subscription;

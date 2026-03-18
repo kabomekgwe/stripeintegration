@@ -98,12 +98,12 @@ export class UsersService {
     if (user) {
       const entity = this.toEntity(user);
       // Cache for 5 minutes (300 seconds)
-      await this.cacheService.set(cacheKey, entity, 300);
+      await this.cacheService.set(cacheKey, entity, { ttlSeconds: 300 });
       // Also cache by ID for consistency
       await this.cacheService.set(
         this.cacheService.userKey(user.id),
         entity,
-        300,
+        { ttlSeconds: 300 },
       );
       return entity;
     }
@@ -125,7 +125,7 @@ export class UsersService {
     if (user) {
       const entity = this.toEntity(user);
       // Cache for 5 minutes (300 seconds)
-      await this.cacheService.set(this.cacheService.userKey(id), entity, 300);
+      await this.cacheService.set(this.cacheService.userKey(id), entity, { ttlSeconds: 300 });
       return entity;
     }
 

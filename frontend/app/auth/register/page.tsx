@@ -8,29 +8,7 @@ import { setCredentials } from '@/store/authSlice';
 import { useDispatch } from 'react-redux';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-
-const countries = [
-  { code: 'US', name: 'United States', flag: '🇺🇸' },
-  { code: 'CA', name: 'Canada', flag: '🇨🇦' },
-  { code: 'GB', name: 'United Kingdom', flag: '🇬🇧' },
-  { code: 'DE', name: 'Germany', flag: '🇩🇪' },
-  { code: 'FR', name: 'France', flag: '🇫🇷' },
-  { code: 'IT', name: 'Italy', flag: '🇮🇹' },
-  { code: 'ES', name: 'Spain', flag: '🇪🇸' },
-  { code: 'NL', name: 'Netherlands', flag: '🇳🇱' },
-  { code: 'AU', name: 'Australia', flag: '🇦🇺' },
-  { code: 'JP', name: 'Japan', flag: '🇯🇵' },
-  { code: 'MX', name: 'Mexico', flag: '🇲🇽' },
-  { code: 'BR', name: 'Brazil', flag: '🇧🇷' },
-  { code: 'SG', name: 'Singapore', flag: '🇸🇬' },
-  { code: 'HK', name: 'Hong Kong', flag: '🇭🇰' },
-  { code: 'NZ', name: 'New Zealand', flag: '🇳🇿' },
-  { code: 'CH', name: 'Switzerland', flag: '🇨🇭' },
-  { code: 'SE', name: 'Sweden', flag: '🇸🇪' },
-  { code: 'NO', name: 'Norway', flag: '🇳🇴' },
-  { code: 'DK', name: 'Denmark', flag: '🇩🇰' },
-  { code: 'IN', name: 'India', flag: '🇮🇳' },
-];
+import { COUNTRIES } from '@/lib/countries';
 
 export default function RegisterPage() {
   const [email, setEmail] = useState('');
@@ -111,9 +89,9 @@ export default function RegisterPage() {
             className="mt-1 flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
           >
             <option value="">Select your country</option>
-            {countries.map((c) => (
+            {COUNTRIES.map((c) => (
               <option key={c.code} value={c.code}>
-                {c.flag} {c.name}
+                {c.name}
               </option>
             ))}
           </select>

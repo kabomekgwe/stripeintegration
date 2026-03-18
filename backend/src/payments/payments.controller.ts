@@ -50,6 +50,23 @@ export class PaymentsController {
     return result;
   }
 
+  @Post('checkout-session')
+  @UseGuards(PaymentRateLimitGuard)
+  async createCheckoutSession(
+    @Request() req,
+    @Body() createPaymentDto: CreatePaymentDto,
+  ) {
+    const frontendUrl = req.headers.origin || 'http://localhost:3000';
+    return this.paymentsService.createCheckoutSession({
+      userId: req.user.id,
+      stripeCustomerId: req.user.stripeCustomerId,
+      amount: createPaymentDto.amount,
+      currency: createPaymentDto.currency,
+      description: createPaymentDto.description,
+      returnUrl: `${frontendUrl}/payments?session_id={CHECKOUT_SESSION_ID}`,
+    });
+  }
+
   @Post(':id/confirm')
   async confirmPayment(@Request() req, @Param('id') id: string) {
     const payment = await this.paymentsService.confirmPayment(id, req.user.id);

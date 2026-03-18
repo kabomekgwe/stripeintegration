@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { Navbar } from '@/components/Navbar';
 import { useCreatePortalSessionMutation, useGetMeQuery, useUpdatePreferredCurrencyMutation, useUpdateCountryMutation, useGetCurrenciesQuery } from '@/store/api';
 import Link from 'next/link';
+import { COUNTRIES } from '@/lib/countries';
 
 const currencyFlags: Record<string, string> = {
   usd: '🇺🇸',
@@ -13,29 +14,6 @@ const currencyFlags: Record<string, string> = {
   aud: '🇦🇺',
   jpy: '🇯🇵',
 };
-
-const countries = [
-  { code: 'US', name: 'United States', flag: '🇺🇸' },
-  { code: 'CA', name: 'Canada', flag: '🇨🇦' },
-  { code: 'GB', name: 'United Kingdom', flag: '🇬🇧' },
-  { code: 'DE', name: 'Germany', flag: '🇩🇪' },
-  { code: 'FR', name: 'France', flag: '🇫🇷' },
-  { code: 'IT', name: 'Italy', flag: '🇮🇹' },
-  { code: 'ES', name: 'Spain', flag: '🇪🇸' },
-  { code: 'NL', name: 'Netherlands', flag: '🇳🇱' },
-  { code: 'AU', name: 'Australia', flag: '🇦🇺' },
-  { code: 'JP', name: 'Japan', flag: '🇯🇵' },
-  { code: 'MX', name: 'Mexico', flag: '🇲🇽' },
-  { code: 'BR', name: 'Brazil', flag: '🇧🇷' },
-  { code: 'SG', name: 'Singapore', flag: '🇸🇬' },
-  { code: 'HK', name: 'Hong Kong', flag: '🇭🇰' },
-  { code: 'NZ', name: 'New Zealand', flag: '🇳🇿' },
-  { code: 'CH', name: 'Switzerland', flag: '🇨🇭' },
-  { code: 'SE', name: 'Sweden', flag: '🇸🇪' },
-  { code: 'NO', name: 'Norway', flag: '🇳🇴' },
-  { code: 'DK', name: 'Denmark', flag: '🇩🇰' },
-  { code: 'IN', name: 'India', flag: '🇮🇳' },
-];
 
 export default function SettingsPage() {
   const { data: user } = useGetMeQuery();
@@ -182,9 +160,9 @@ export default function SettingsPage() {
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white disabled:opacity-50"
               >
                 <option value="">Select your country</option>
-                {countries.map((c) => (
+                {COUNTRIES.map((c) => (
                   <option key={c.code} value={c.code}>
-                    {c.flag} {c.name}
+                    {c.name}
                   </option>
                 ))}
               </select>

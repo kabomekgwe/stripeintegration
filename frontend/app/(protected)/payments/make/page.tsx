@@ -1,198 +1,284 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useId, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { Navbar } from '@/components/Navbar';
-import { PaymentElementForm } from '@/components/stripe/PaymentElementForm';
 import {
   useCreatePaymentIntentMutation,
+  useConfirmPaymentMutation,
   useGetPaymentMethodsQuery,
   useGetMeQuery,
-  useGetCurrenciesQuery,
-  useDetectCurrencyQuery,
   useConvertCurrencyQuery,
-  useUpdatePreferredCurrencyMutation,
 } from '@/store/api';
-import { StripeProvider } from '@/components/stripe/StripeProvider';
 import { getStripe } from '@/lib/stripe-client';
+import { StripeProvider } from '@/components/stripe/StripeProvider';
+import { COUNTRY_CURRENCY } from '@/lib/countries';
 
-const currencySymbols: Record<string, string> = {
-  usd: '$',
-  eur: '€',
-  gbp: '£',
-  cad: 'C$',
-  aud: 'A$',
-  jpy: '¥',
-  zar: 'R',
-};
+// Custom hook for debouncing values
+function useDebounce<T>(value: T, delay: number): T {
+  const [debouncedValue, setDebouncedValue] = useState<T>(value);
 
-const currencyFlags: Record<string, string> = {
-  usd: '🇺🇸',
-  eur: '🇪🇺',
-  gbp: '🇬🇧',
-  cad: '🇨🇦',
-  aud: '🇦🇺',
-  jpy: '🇯🇵',
-  zar: '🇿🇦',
-};
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedValue(value);
+    }, delay);
+
+    return () => {
+      clearTimeout(timer);
+    };
+  }, [value, delay]);
+
+  return debouncedValue;
+}
+
+// All currencies supported by Stripe FX Quotes API (170+ currencies)
+// Source: https://docs.stripe.com/payouts/cross-border-payouts/supported-currencies
+const SUPPORTED_CURRENCIES = [
+  // Major Global Currencies
+  'aed', 'afn', 'all', 'amd', 'ang', 'aoa', 'ars', 'aud', 'awg', 'azn',
+  'bam', 'bbd', 'bdt', 'bgn', 'bhd', 'bif', 'bmd', 'bnd', 'bob', 'brl',
+  'bsd', 'btn', 'bwp', 'byn', 'bzd', 'cad', 'cdf', 'chf', 'clp', 'cny',
+  'cop', 'crc', 'cup', 'cve', 'czk', 'dkk', 'djf', 'dop', 'dzd', 'egp',
+  'ern', 'etb', 'eur', 'fjd', 'fkp', 'gbp', 'gel', 'ghs', 'gip', 'gmd',
+  'gnf', 'gtq', 'gyd', 'hkd', 'hnl', 'hrk', 'htg', 'huf', 'idr', 'ils',
+  'inr', 'iqd', 'irr', 'isk', 'jmd', 'jod', 'jpy', 'kes', 'kgs', 'khr',
+  'kmf', 'kpw', 'krw', 'kwd', 'kyd', 'kzt', 'lak', 'lbp', 'lkr', 'lrd',
+  'lsl', 'lyd', 'mad', 'mdl', 'mga', 'mkd', 'mmk', 'mnt', 'mop', 'mru',
+  'mur', 'mvr', 'mwk', 'mxn', 'myr', 'mzn', 'nad', 'ngn', 'nio', 'nok',
+  'npr', 'nzd', 'omr', 'pab', 'pen', 'pgk', 'php', 'pkr', 'pln', 'pyg',
+  'qar', 'ron', 'rsd', 'rub', 'rwf', 'sar', 'sbd', 'scr', 'sdg', 'sek',
+  'sgd', 'shp', 'sle', 'sll', 'sos', 'srd', 'ssp', 'stn', 'syp', 'szl',
+  'thb', 'tjs', 'tmt', 'tnd', 'top', 'try', 'ttd', 'twd', 'tzs', 'uah',
+  'ugx', 'usd', 'uyu', 'uzs', 'ves', 'vnd', 'vuv', 'wst', 'xaf', 'xcd',
+  'xdr', 'xof', 'xpf', 'yer', 'zar', 'zmw', 'zwl',
+];
+import {
+  PaymentElement,
+  useStripe,
+  useElements,
+} from '@stripe/react-stripe-js';
+
+function PaymentForm({
+  amount,
+  description,
+  paymentIntentId,
+  onSuccess,
+  onCancel,
+  localCurrency,
+  convertedAmount,
+}: {
+  amount: number;
+  description: string;
+  paymentIntentId: string;
+  onSuccess: () => void;
+  onCancel: () => void;
+  localCurrency?: string;
+  convertedAmount?: { amount: number; currency: string; formatted: string };
+}) {
+  const amountId = useId();
+  const descriptionId = useId();
+  const stripe = useStripe();
+  const elements = useElements();
+  const [confirmPayment] = useConfirmPaymentMutation();
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!stripe || !elements) return;
+
+    setIsLoading(true);
+    setError(null);
+
+    const { error: stripeError, paymentIntent } = await stripe.confirmPayment({
+      elements,
+      confirmParams: { return_url: window.location.href },
+      redirect: 'if_required',
+    });
+
+    if (stripeError) {
+      setError(stripeError.message ?? 'An error occurred');
+      setIsLoading(false);
+      return;
+    }
+
+    if (paymentIntent?.status === 'succeeded') {
+      await confirmPayment(paymentIntentId);
+      onSuccess();
+    }
+
+    setIsLoading(false);
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-6">
+      {/* Step 1 fields — read-only summary */}
+      <div>
+        <label htmlFor={amountId} className="block text-sm font-medium text-gray-700 mb-2">
+          Amount (£)
+        </label>
+        <div className="relative">
+          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">£</span>
+          <input
+            id={amountId}
+            type="text"
+            readOnly
+            value={amount.toFixed(2)}
+            className="w-full pl-8 pr-4 py-2 border border-gray-200 rounded-lg bg-gray-50 text-gray-700"
+          />
+        </div>
+        {/* Show converted amount in user's currency */}
+        {localCurrency && localCurrency !== 'gbp' && convertedAmount && (
+          <p className="text-sm text-blue-600 font-medium mt-2">
+            ≈ {convertedAmount.formatted} {convertedAmount.currency.toUpperCase()}
+          </p>
+        )}
+      </div>
+
+      {description && (
+        <div>
+          <label htmlFor={descriptionId} className="block text-sm font-medium text-gray-700 mb-2">
+            Description
+          </label>
+          <input
+            id={descriptionId}
+            type="text"
+            readOnly
+            value={description}
+            className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-gray-50 text-gray-700"
+          />
+        </div>
+      )}
+
+      <PaymentElement />
+
+      {error && (
+        <div className="rounded-md bg-red-50 p-3 text-sm text-red-700">{error}</div>
+      )}
+
+      <div className="flex gap-3">
+        <button
+          type="button"
+          onClick={onCancel}
+          disabled={isLoading}
+          className="flex-1 rounded-md border border-gray-300 px-4 py-2 text-gray-700 hover:bg-gray-50 disabled:opacity-50 cursor-pointer"
+        >
+          Cancel
+        </button>
+        <button
+          type="submit"
+          disabled={!stripe || isLoading}
+          className="flex-1 rounded-md bg-blue-600 px-4 py-2 text-white hover:bg-blue-700 disabled:opacity-50 cursor-pointer"
+        >
+          {isLoading ? 'Processing...' : 'Pay now'}
+        </button>
+      </div>
+    </form>
+  );
+}
 
 export default function MakePaymentPage() {
-  const router = useRouter();
-  const { data: user } = useGetMeQuery();
-  const { data: currenciesData } = useGetCurrenciesQuery();
-  const [updateCurrency] = useUpdatePreferredCurrencyMutation();
+  const amountId = useId();
+  const descriptionId = useId();
+
   const [amount, setAmount] = useState<number>(0);
   const [description, setDescription] = useState<string>('');
-  const [currency, setCurrency] = useState<string>('usd');
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [paymentIntentId, setPaymentIntentId] = useState<string>('');
-  const [paymentCreated, setPaymentCreated] = useState(false);
-  const [detectedCurrency, setDetectedCurrency] = useState<string | null>(null);
-  const [showDetectionNotice, setShowDetectionNotice] = useState(false);
 
   const { data: paymentMethodsData } = useGetPaymentMethodsQuery();
   const [createPaymentIntent, { isLoading: creating, error: createError }] = useCreatePaymentIntentMutation();
+  const { data: me } = useGetMeQuery();
 
-  // Get conversion for USD equivalent display
-  const { data: conversionData } = useConvertCurrencyQuery(
-    { amount: Math.round(amount * 100), from: currency, to: 'usd' },
-    { skip: amount <= 0 || currency === 'usd' }
+  /**
+   * Determine the user's local currency for display.
+   * Only returns currencies supported by the backend conversion API.
+   * Priority: 1) Country mapping → 2) Preferred currency → 3) undefined
+   */
+  const getLocalCurrency = (): string | undefined => {
+    // 1. Try country-to-currency mapping (only return supported currencies)
+    if (me?.country) {
+      const fromCountry = COUNTRY_CURRENCY[me.country.toUpperCase()];
+      if (fromCountry && SUPPORTED_CURRENCIES.includes(fromCountry)) {
+        return fromCountry;
+      }
+    }
+    // 2. Fall back to user's preferred currency setting (only if supported)
+    if (me?.preferredCurrency) {
+      const preferred = me.preferredCurrency.toLowerCase();
+      if (SUPPORTED_CURRENCIES.includes(preferred)) {
+        return preferred;
+      }
+    }
+    // 3. No supported currency detected
+    return undefined;
+  };
+
+  const localCurrency = getLocalCurrency();
+  
+  // Debug: log currency detection
+  useEffect(() => {
+    console.log('[Currency Debug] Country:', me?.country, 'Preferred:', me?.preferredCurrency, 'Detected:', localCurrency);
+  }, [me?.country, me?.preferredCurrency, localCurrency]);
+  
+  // Debounce the amount for conversion API calls (300ms delay)
+  const debouncedAmount = useDebounce(amount, 300);
+  
+  const { data: converted, isFetching: isConverting } = useConvertCurrencyQuery(
+    { amount: Math.round(debouncedAmount * 100), from: 'gbp', to: localCurrency ?? '' },
+    { skip: !localCurrency || localCurrency === 'gbp' || debouncedAmount <= 0 },
   );
 
-  // Detect currency from IP (only when no user preference)
-  const { data: detectedCurrencyData } = useDetectCurrencyQuery(undefined, {
-    skip: !!user?.preferredCurrency || !!detectedCurrency,
-  });
-
-  // Set currency from user preference when available
+  // Debug: log conversion response
   useEffect(() => {
-    if (user?.preferredCurrency) {
-      setCurrency(user.preferredCurrency);
+    if (converted) {
+      console.log('[Conversion Debug] Response:', converted);
     }
-  }, [user]);
-
-  // Handle detected currency from RTK Query
-  useEffect(() => {
-    if (detectedCurrencyData?.suggestedCurrency && detectedCurrencyData.suggestedCurrency !== 'USD') {
-      const detected = detectedCurrencyData.suggestedCurrency.toLowerCase();
-      setDetectedCurrency(detected);
-      setCurrency(detected);
-      setShowDetectionNotice(true);
-      // Auto-save detected currency as preference
-      updateCurrency(detected);
-    }
-  }, [detectedCurrencyData, updateCurrency]);
+  }, [converted]);
 
   const hasPaymentMethods = (paymentMethodsData?.paymentMethods?.length || 0) > 0;
-  const currencies = currenciesData?.currencies || [];
-  const currencySymbol = currencySymbols[currency] || '$';
-  const usdEquivalent = conversionData?.converted?.amount
-    ? (conversionData.converted.amount / 100).toFixed(2)
-    : null;
 
-  const handleCreatePayment = async (e: React.FormEvent) => {
+  const handleContinue = async (e: React.FormEvent) => {
     e.preventDefault();
     if (amount <= 0) return;
 
     try {
       const result = await createPaymentIntent({
-        amount: Math.round(amount * 100), // Convert to cents
-        currency,
+        amount: Math.round(amount * 100),
+        currency: 'gbp',
         description: description || 'Payment',
       }).unwrap();
 
       setClientSecret(result.clientSecret);
       setPaymentIntentId(result.paymentIntentId);
-      setPaymentCreated(true);
     } catch (err) {
       console.error('Failed to create payment:', err);
-      console.error('Error details:', JSON.stringify(err, null, 2));
     }
-  };
-
-  const handlePaymentSuccess = () => {
-    router.push('/payments');
   };
 
   const handleCancel = () => {
     setClientSecret(null);
-    setPaymentCreated(false);
+    setPaymentIntentId('');
   };
-
-  const handleDismissDetection = () => {
-    setShowDetectionNotice(false);
-  };
-
-  // Show payment form if clientSecret exists
-  if (clientSecret) {
-    return (
-      <div className="min-h-screen bg-gray-50">
-        <Navbar />
-        <main className="mx-auto max-w-xl px-4 py-8">
-          <div className="mb-6">
-            <button
-              onClick={() => {
-                setClientSecret(null);
-                setPaymentCreated(false);
-              }}
-              className="text-blue-600 hover:underline text-sm"
-            >
-              ← Back to Payment Details
-            </button>
-          </div>
-
-          <div className="bg-white rounded-lg shadow p-6">
-            <div className="mb-6 pb-6 border-b border-gray-200">
-              <h2 className="text-xl font-semibold mb-4">Payment Summary</h2>
-              <div className="bg-gray-50 rounded-lg p-4">
-                <div className="flex justify-between mb-2">
-                  <span className="text-gray-600">Amount</span>
-                  <span className="font-medium">{currencySymbol}{amount.toFixed(2)} {currency.toUpperCase()}</span>
-                </div>
-                {usdEquivalent && currency !== 'usd' && (
-                  <div className="flex justify-between text-sm text-gray-500">
-                    <span>≈ USD Equivalent</span>
-                    <span>${usdEquivalent}</span>
-                  </div>
-                )}
-                {description && (
-                  <div className="flex justify-between mt-2">
-                    <span className="text-gray-600">Description</span>
-                    <span className="font-medium text-right max-w-[60%]">{description}</span>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            <StripeProvider
-              stripe={getStripe()}
-              options={{ clientSecret }}
-            >
-              <PaymentElementForm
-                clientSecret={clientSecret}
-                paymentIntentId={paymentIntentId}
-                onSuccess={handlePaymentSuccess}
-                onCancel={handleCancel}
-              />
-            </StripeProvider>
-          </div>
-        </main>
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen bg-gray-50">
       <Navbar />
       <main className="mx-auto max-w-xl px-4 py-8">
         <div className="mb-6">
-          <Link
-            href="/payments"
-            className="text-blue-600 hover:underline text-sm"
-          >
-            ← Back to Payments
-          </Link>
+          {clientSecret ? (
+            <button
+              type="button"
+              onClick={handleCancel}
+              className="text-blue-600 hover:underline text-sm cursor-pointer"
+            >
+              ← Back to Payment Details
+            </button>
+          ) : (
+            <Link href="/payments" className="text-blue-600 hover:underline text-sm">
+              ← Back to Payments
+            </Link>
+          )}
         </div>
 
         <h1 className="text-3xl font-bold mb-2">Make a Payment</h1>
@@ -200,29 +286,10 @@ export default function MakePaymentPage() {
           Enter the payment details below to process a one-time charge.
         </p>
 
-        {/* Currency Detection Notice */}
-        {showDetectionNotice && detectedCurrency && (
-          <div className="bg-blue-50 border border-blue-200 text-blue-800 px-4 py-3 rounded-lg mb-6 flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <span className="text-lg">🌍</span>
-              <span>
-                We've detected you're in a region that uses {detectedCurrency.toUpperCase()}.
-                Currency set to {currencyFlags[detectedCurrency]} {detectedCurrency.toUpperCase()}.
-              </span>
-            </div>
-            <button
-              onClick={handleDismissDetection}
-              className="text-blue-600 hover:text-blue-800 text-sm"
-            >
-              Dismiss
-            </button>
-          </div>
-        )}
-
-        {!hasPaymentMethods && (
+        {!clientSecret && !hasPaymentMethods && (
           <div className="bg-yellow-50 border border-yellow-200 text-yellow-800 px-4 py-3 rounded-lg mb-6">
             <p className="text-sm">
-              You don't have any saved payment methods. Consider adding one first for faster checkout.
+              You don&apos;t have any saved payment methods. Consider adding one first for faster checkout.
             </p>
             <Link
               href="/payment-methods/add"
@@ -239,138 +306,113 @@ export default function MakePaymentPage() {
           </div>
         )}
 
-        <form onSubmit={handleCreatePayment} className="bg-white rounded-lg shadow p-6">
-          <div className="space-y-6">
-            {/* Currency Selection */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Currency
-              </label>
-              <div className="grid grid-cols-3 gap-2">
-                {currencies.map((curr: any) => (
-                  <button
-                    key={curr.code}
-                    type="button"
-                    onClick={() => setCurrency(curr.code.toLowerCase())}
-                    className={`p-3 border rounded-lg text-center transition-colors ${
-                      currency === curr.code.toLowerCase()
-                        ? 'border-blue-500 bg-blue-50'
-                        : 'border-gray-200 hover:bg-gray-50'
-                    }`}
-                  >
-                    <span className="text-lg mr-1">{currencyFlags[curr.code.toLowerCase()] || '💰'}</span>
-                    <span className="font-medium">{curr.code}</span>
-                  </button>
-                ))}
+        <div className="bg-white rounded-lg shadow p-6">
+          {/* Step 1: enter amount + description */}
+          {!clientSecret && (
+            <form onSubmit={handleContinue} className="space-y-6">
+              <div>
+                <label htmlFor={amountId} className="block text-sm font-medium text-gray-700 mb-2">
+                  Amount (£)
+                </label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">£</span>
+                  <input
+                    type="number"
+                    id={amountId}
+                    step="0.01"
+                    min="0.30"
+                    required
+                    value={amount || ''}
+                    onChange={(e) => setAmount(parseFloat(e.target.value) || 0)}
+                    className="w-full pl-8 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="0.00"
+                  />
+                </div>
+                <p className="text-sm text-gray-500 mt-1">Minimum: £0.30</p>
+                {amount > 0 && (
+                  <div className="mt-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
+                    <p className="text-xs text-gray-500 mb-1">
+                      Detected currency: {localCurrency?.toUpperCase() || 'None (set country in settings)'}
+                    </p>
+                    {/* User has a currency and it's not GBP - show conversion */}
+                    {localCurrency && localCurrency !== 'gbp' && (
+                      <div className="flex items-center gap-2">
+                        {isConverting ? (
+                          <>
+                            <span className="inline-block w-4 h-4 border-2 border-gray-300 border-t-blue-600 rounded-full animate-spin" />
+                            <span className="text-gray-500 text-sm">Converting {amount} GBP...</span>
+                          </>
+                        ) : converted?.converted ? (
+                          <span className="text-blue-600 font-semibold text-lg">
+                            ≈ {converted.converted.formatted} {converted.converted.currency.toUpperCase()}
+                          </span>
+                        ) : (
+                          <span className="text-gray-400 text-sm">Conversion unavailable</span>
+                        )}
+                      </div>
+                    )}
+                    {/* User is in UK (GBP) - show info message */}
+                    {localCurrency === 'gbp' && (
+                      <p className="text-gray-600 text-sm">
+                        💷 Payment will be processed in British Pounds (GBP)
+                      </p>
+                    )}
+                    {/* No currency detected - prompt user to set country */}
+                    {!localCurrency && (
+                      <div className="flex items-center gap-2 text-amber-700">
+                        <span>🌍</span>
+                        <Link href="/settings" className="underline hover:text-amber-800 text-sm font-medium">
+                          Set your country to see converted amounts
+                        </Link>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
-              {user?.preferredCurrency && (
-                <p className="text-sm text-gray-500 mt-2">
-                  Using your preferred currency: {currency.toUpperCase()}
-                </p>
-              )}
-            </div>
 
-            <div>
-              <label htmlFor="amount" className="block text-sm font-medium text-gray-700 mb-2">
-                Amount ({currencySymbol})
-              </label>
-              <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">{currencySymbol}</span>
+              <div>
+                <label htmlFor={descriptionId} className="block text-sm font-medium text-gray-700 mb-2">
+                  Description (Optional)
+                </label>
                 <input
-                  type="number"
-                  id="amount"
-                  step="0.01"
-                  min="0.50"
-                  required
-                  value={amount || ''}
-                  onChange={(e) => setAmount(parseFloat(e.target.value) || 0)}
-                  className="w-full pl-8 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  placeholder="0.00"
+                  type="text"
+                  id={descriptionId}
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  placeholder="What is this payment for?"
+                  maxLength={500}
                 />
               </div>
-              <p className="text-sm text-gray-500 mt-1">Minimum: {currencySymbol}0.50</p>
 
-              {/* USD Equivalent Display */}
-              {amount > 0 && currency !== 'usd' && usdEquivalent && (
-                <p className="text-sm text-blue-600 mt-1">
-                  ≈ ${usdEquivalent} USD
-                </p>
-              )}
-            </div>
+              <button
+                type="submit"
+                disabled={creating || amount <= 0}
+                className="w-full bg-blue-600 text-white py-3 rounded-lg font-medium hover:bg-blue-700 disabled:opacity-50 cursor-pointer"
+              >
+                {creating ? 'Processing...' : 'Continue to Payment'}
+              </button>
+            </form>
+          )}
 
-            <div>
-              <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-2">
-                Description (Optional)
-              </label>
-              <input
-                type="text"
-                id="description"
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                placeholder="What is this payment for?"
-                maxLength={500}
+          {/* Step 2: CurrencySelectorElement + PaymentElement inside Elements context */}
+          {clientSecret && (
+            <StripeProvider stripe={getStripe()} options={{ clientSecret }}>
+              <PaymentForm
+                amount={amount}
+                description={description}
+                paymentIntentId={paymentIntentId}
+                onSuccess={() => window.location.assign('/payments')}
+                onCancel={handleCancel}
+                localCurrency={localCurrency}
+                convertedAmount={converted?.converted}
               />
-            </div>
-
-            <div className="bg-gray-50 rounded-lg p-4">
-              <h3 className="text-sm font-medium text-gray-700 mb-2">Payment Summary</h3>
-              <div className="flex justify-between text-sm">
-                <span className="text-gray-600">Subtotal</span>
-                <span>
-                  {amount > 0 ? `${currencySymbol}${amount.toFixed(2)}` : '-'} {currency.toUpperCase()}
-                </span>
-              </div>
-
-              <div className="flex justify-between text-sm mt-1">
-                <span className="text-gray-600">Tax</span>
-                <span className="text-gray-500">Calculated at checkout</span>
-              </div>
-
-              {/* USD Equivalent */}
-              {amount > 0 && currency !== 'usd' && usdEquivalent && (
-                <div className="flex justify-between text-sm mt-1 text-blue-600">
-                  <span>≈ USD Equivalent</span>
-                  <span>${usdEquivalent}</span>
-                </div>
-              )}
-
-              <hr className="my-2 border-gray-200" />
-              <div className="flex justify-between font-semibold">
-                <span>Total</span>
-                <span>
-                  {amount > 0
-                    ? `${currencySymbol}${amount.toFixed(2)}`
-                    : '-'} {currency.toUpperCase()}
-                </span>
-              </div>
-
-              {/* USD Total Equivalent */}
-              {amount > 0 && currency !== 'usd' && usdEquivalent && (
-                <div className="flex justify-between text-sm text-blue-600 mt-1">
-                  <span>≈</span>
-                  <span>${usdEquivalent} USD</span>
-                </div>
-              )}
-            </div>
-
-            <button
-              type="submit"
-              disabled={creating || amount <= 0}
-              className="w-full bg-blue-600 text-white py-3 rounded-lg font-medium hover:bg-blue-700 disabled:opacity-50"
-            >
-              {creating ? 'Processing...' : 'Continue to Payment'}
-            </button>
-          </div>
-        </form>
+            </StripeProvider>
+          )}
+        </div>
 
         <div className="mt-6 text-center text-sm text-gray-500">
           <p>🔒 Your payment is secured by Stripe encryption</p>
-          {currency !== 'usd' && (
-            <p className="mt-1 text-xs">
-              Exchange rates are approximate and updated daily
-            </p>
-          )}
         </div>
       </main>
     </div>

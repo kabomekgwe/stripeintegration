@@ -41,7 +41,6 @@ export const authApi = baseApi.injectEndpoints({
     getMe: builder.query<User, void>({
       query: () => '/auth/me',
       providesTags: ['User'],
-      // Data persists until 'User' tag is invalidated
     }),
 
     requestPasswordReset: builder.mutation<{ message: string }, { email: string }>({

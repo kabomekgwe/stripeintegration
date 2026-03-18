@@ -476,15 +476,77 @@ export class StripeService {
    * Note: Uses Stripe's FX Quotes API (preview). The base_rate is the mid-market
    * rate, while exchange_rate includes Stripe's ~2% FX fee.
    * We use base_rate for display purposes.
+   *
+   * Fetches ALL currencies supported by Stripe (170+ currencies).
    */
   async getExchangeRates(): Promise<Record<string, number>> {
-    // Currencies we want rates for (supported by the app)
-    const fromCurrencies = ['eur', 'gbp', 'cad', 'aud', 'jpy', 'zar'];
+    // All currencies supported by Stripe for FX quotes
+    // Source: https://docs.stripe.com/payouts/cross-border-payouts/supported-currencies
+    const fromCurrencies = [
+      // Major Global Currencies
+      'aed', 'afn', 'all', 'amd', 'ang', 'aoa', 'ars', 'aud', 'awg', 'azn',
+      'bam', 'bbd', 'bdt', 'bgn', 'bhd', 'bif', 'bmd', 'bnd', 'bob', 'brl',
+      'bsd', 'btn', 'bwp', 'byn', 'bzd', 'cad', 'cdf', 'chf', 'clp', 'cny',
+      'cop', 'crc', 'cup', 'cve', 'czk',
+      // European Currencies
+      'dkk', 'djf', 'dop', 'dzd',
+      // E currencies
+      'egp', 'ern', 'etb', 'eur',
+      // F currencies
+      'fjd', 'fkp',
+      // G currencies
+      'gbp', 'gel', 'ghs', 'gip', 'gmd', 'gnf', 'gtq', 'gyd',
+      // H currencies
+      'hkd', 'hnl', 'hrk', 'htg', 'huf',
+      // I currencies
+      'idr', 'ils', 'inr', 'iqd', 'irr', 'isk',
+      // J currencies
+      'jmd', 'jod', 'jpy',
+      // K currencies
+      'kes', 'kgs', 'khr', 'kmf', 'kpw', 'krw', 'kwd', 'kyd', 'kzt',
+      // L currencies
+      'lak', 'lbp', 'lkr', 'lrd', 'lsl', 'lyd',
+      // M currencies
+      'mad', 'mdl', 'mga', 'mkd', 'mmk', 'mnt', 'mop', 'mru', 'mur', 'mvr',
+      'mwk', 'mxn', 'myr', 'mzn',
+      // N currencies
+      'nad', 'ngn', 'nio', 'nok', 'npr', 'nzd',
+      // O currencies
+      'omr',
+      // P currencies
+      'pab', 'pen', 'pgk', 'php', 'pkr', 'pln', 'pyg',
+      // Q currencies
+      'qar',
+      // R currencies
+      'ron', 'rsd', 'rub', 'rwf',
+      // S currencies
+      'sar', 'sbd', 'scr', 'sdg', 'sek', 'sgd', 'shp', 'sle', 'sll', 'sos',
+      'srd', 'ssp', 'stn', 'syp', 'szl',
+      // T currencies
+      'thb', 'tjs', 'tmt', 'tnd', 'top', 'try', 'ttd', 'twd', 'tzs',
+      // U currencies
+      'uah', 'ugx', 'usd', 'uyu', 'uzs',
+      // V currencies
+      'ves', 'vnd', 'vuv',
+      // W currencies
+      'wst',
+      // X currencies
+      'xaf', 'xcd', 'xdr', 'xof', 'xpf',
+      // Y currencies
+      'yer',
+      // Z currencies
+      'zar', 'zmw', 'zwl',
+    ];
+
+    // Maximum allowed by Stripe API is 100 currencies per request
+    // So we need to split into chunks
+    const chunkSize = 100;
+    const chunks: string[][] = [];
+    for (let i = 0; i < fromCurrencies.length; i += chunkSize) {
+      chunks.push(fromCurrencies.slice(i, i + chunkSize));
+    }
 
     try {
-      // Create an FX quote to get current rates
-      // FX Quotes is a preview API, so we need to cast the Stripe client
-      // to access the fxQuotes resource
       const stripeWithFx = this.stripe as unknown as {
         fxQuotes: {
           create: (params: {
@@ -497,20 +559,32 @@ export class StripeService {
         };
       };
 
-      const quote = await stripeWithFx.fxQuotes.create({
-        to_currency: 'usd',
-        from_currencies: fromCurrencies,
-        lock_duration: 'none', // Don't lock the rate, just get current spot
-      });
-
       const rates: Record<string, number> = { usd: 1.0 };
 
-      // Extract base_rate from each currency's rate details
-      for (const [currency, data] of Object.entries(quote.rates || {})) {
-        if (data.rate_details?.base_rate) {
-          // base_rate is mid-market rate (no Stripe fee)
-          // For display: 1 USD = X foreign currency, so we need the inverse
-          rates[currency.toLowerCase()] = 1 / data.rate_details.base_rate;
+      // Fetch rates in parallel chunks
+      const results = await Promise.all(
+        chunks.map(async (chunk) => {
+          try {
+            const quote = await stripeWithFx.fxQuotes.create({
+              to_currency: 'usd',
+              from_currencies: chunk,
+              lock_duration: 'none',
+            });
+            return quote.rates || {};
+          } catch {
+            return {};
+          }
+        }),
+      );
+
+      // Merge all rate results
+      for (const result of results) {
+        for (const [currency, data] of Object.entries(result)) {
+          if (data.rate_details?.base_rate) {
+            // base_rate is mid-market rate (no Stripe fee)
+            // For display: 1 USD = X foreign currency, so we need the inverse
+            rates[currency.toLowerCase()] = 1 / data.rate_details.base_rate;
+          }
         }
       }
 

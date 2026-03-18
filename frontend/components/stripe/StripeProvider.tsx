@@ -23,8 +23,10 @@ export function StripeProvider({ stripe, options, children }: StripeProviderProp
         fontFamily: 'system-ui, sans-serif',
         fontSizeBase: '16px',
       },
+      
     },
-    
+
+    currency: (options as { clientSecret?: string; currency?: string })?.currency ?? undefined,
   };
 
   return (

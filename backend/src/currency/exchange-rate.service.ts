@@ -22,8 +22,27 @@ export class ExchangeRateService implements OnModuleInit {
     @InjectQueue('currency') private readonly currencyQueue: Queue,
   ) {}
 
-  onModuleInit() {
+  async onModuleInit() {
     this.logger.log('ExchangeRateService initialized with Stripe');
+    
+    // Try to get cached rates first
+    const cachedRates = await this.getCachedRates();
+    
+    if (cachedRates) {
+      this.logger.log(`Loaded ${Object.keys(cachedRates).length} cached exchange rates`);
+    } else {
+      // No cached rates - fetch fresh ones immediately
+      this.logger.log('No cached rates found, fetching from Stripe...');
+      const success = await this.refreshRates();
+      if (success) {
+        this.logger.log('Exchange rates fetched successfully on startup');
+      } else {
+        this.logger.error('Failed to fetch exchange rates on startup');
+      }
+    }
+    
+    // Schedule daily refresh
+    await this.scheduleDailyRefresh();
   }
 
   async fetchLatestRates(): Promise<ExchangeRateResponse | null> {

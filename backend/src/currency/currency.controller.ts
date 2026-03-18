@@ -63,7 +63,7 @@ export class CurrencyController {
   }
 
   @Get('convert')
-  convertAmount(
+  async convertAmount(
     @Query('amount') amount: string,
     @Query('from') from: string,
     @Query('to') to: string,
@@ -74,8 +74,8 @@ export class CurrencyController {
     }
 
     try {
-      const converted = this.currencyService.convert(amountNum, from, to);
-      const rate = this.currencyService.getExchangeRate(from, to);
+      const converted = await this.currencyService.convert(amountNum, from, to);
+      const rate = await this.currencyService.getExchangeRate(from, to);
       
       return {
         original: {
@@ -97,14 +97,14 @@ export class CurrencyController {
   }
 
   @Get('exchange-rates')
-  getExchangeRates(@Query('base') base: string = 'usd') {
+  async getExchangeRates(@Query('base') base: string = 'usd') {
     const currencies = this.currencyService.getSupportedCurrencies();
     const rates: Record<string, number> = {};
 
     for (const currency of currencies) {
       if (currency.code.toLowerCase() !== base.toLowerCase()) {
         try {
-          rates[currency.code] = this.currencyService.getExchangeRate(base, currency.code);
+          rates[currency.code] = await this.currencyService.getExchangeRate(base, currency.code);
         } catch {
           // Skip if rate not available
         }

@@ -1,5 +1,5 @@
 import { baseApi } from './baseApi';
-import type { Payment, PaymentIntentResponse, CreatePaymentRequest } from '@/types';
+import type { Payment, PaymentIntentResponse, CheckoutSessionResponse, CreatePaymentRequest } from '@/types';
 
 /**
  * Payments API
@@ -29,6 +29,14 @@ export const paymentsApi = baseApi.injectEndpoints({
     createPaymentIntent: builder.mutation<PaymentIntentResponse, CreatePaymentRequest>({
       query: (data) => ({
         url: '/payments/intent',
+        method: 'POST',
+        body: data,
+      }),
+    }),
+
+    createCheckoutSession: builder.mutation<CheckoutSessionResponse, CreatePaymentRequest>({
+      query: (data) => ({
+        url: '/payments/checkout-session',
         method: 'POST',
         body: data,
       }),
@@ -98,6 +106,7 @@ export const {
   useGetPaymentsQuery,
   useGetPaymentQuery,
   useCreatePaymentIntentMutation,
+  useCreateCheckoutSessionMutation,
   useConfirmPaymentMutation,
   useRetryPaymentMutation,
   useCreateRefundMutation,

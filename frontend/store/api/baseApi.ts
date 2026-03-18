@@ -32,7 +32,7 @@ export const baseApi = createApi({
     'Connect',
     'PromoCodes',
   ],
-  keepUnusedDataFor: Infinity, // Data persists until explicitly invalidated
+  keepUnusedDataFor: 60, // 60s cache; invalidation triggers re-fetch
   refetchOnMountOrArgChange: false, // Use cache if available
   refetchOnFocus: false, // Don't refetch on window focus
   refetchOnReconnect: true, // Refetch when network reconnects

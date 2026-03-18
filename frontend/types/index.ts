@@ -78,6 +78,11 @@ export interface PaymentIntentResponse {
   paymentIntentId: string;
 }
 
+export interface CheckoutSessionResponse {
+  clientSecret: string;
+  sessionId: string;
+}
+
 export interface SetupIntentResponse {
   clientSecret: string;
 }
