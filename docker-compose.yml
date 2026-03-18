@@ -19,7 +19,7 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
     ports:
-      - "5432:5432"
+      - "5433:5432"
     networks:
       stripe-network:
         ipv4_address: 172.20.0.2
@@ -37,7 +37,7 @@ services:
     volumes:
       - redis_data:/data
     ports:
-      - "6379:6379"
+      - "6380:6379"
     networks:
       stripe-network:
         ipv4_address: 172.20.0.3
@@ -64,7 +64,7 @@ services:
       FRONTEND_URL: http://localhost:3000
       PORT: 3001
     ports:
-      - "3001:3001"
+      - "3002:3001"
     depends_on:
       postgres:
         condition: service_healthy
@@ -73,30 +73,8 @@ services:
     networks:
       stripe-network:
         ipv4_address: 172.20.0.4
-    volumes:
-      - ./backend:/app
-      - /app/node_modules
 
-  frontend:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
-    container_name: stripe-frontend
-    restart: unless-stopped
-    environment:
-      NODE_ENV: production
-      NEXT_PUBLIC_API_URL: /api
-      NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: ${NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY}
-      BACKEND_URL: http://172.20.0.4:3001
-      API_KEY: ${API_KEY}
-    ports:
-      - "3000:3000"
-    depends_on:
-      - backend
-    networks:
-      stripe-network:
-        ipv4_address: 172.20.0.5
-
+  
 volumes:
   postgres_data:
   redis_data:

@@ -29,9 +29,12 @@ export class PaymentMethodsController {
   }
 
   @Get('enabled')
-  async getEnabledPaymentMethods() {
-    const enabled = await this.stripeService.getEnabledPaymentMethods();
-    return { paymentMethodConfigurations: enabled.paymentMethodConfigurations };
+  @UseGuards(JwtAuthGuard)
+  async getEnabledPaymentMethods(@Request() req) {
+    const result = await this.paymentMethodsService.getEnabledPaymentMethods(
+      req.user.id,
+    );
+    return result;
   }
 
   @Post('setup-intent')

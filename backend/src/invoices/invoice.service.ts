@@ -35,9 +35,7 @@ export class InvoiceService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly configService: ConfigService,
-  ) {
-    this.initBrowser();
-  }
+  ) {}
 
   private async initBrowser() {
     if (!this.browser) {

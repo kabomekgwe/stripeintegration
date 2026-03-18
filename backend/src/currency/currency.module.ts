@@ -14,8 +14,8 @@ import { RedisModule } from '../redis/redis.module';
     RedisModule,
     BullModule.registerQueue({
       name: 'currency',
-      redis: {
-        host: process.env.REDIS_HOST || 'redis',
+      redis: process.env.REDIS_URL || {
+        host: process.env.REDIS_HOST || 'localhost',
         port: parseInt(process.env.REDIS_PORT || '6379'),
       },
     }),

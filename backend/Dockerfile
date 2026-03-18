@@ -25,4 +25,4 @@ RUN pnpm build
 
 EXPOSE 3001
 
-CMD ["pnpm", "start:prod"]
+CMD ["node", "dist/src/main.js"]

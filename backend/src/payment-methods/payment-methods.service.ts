@@ -237,6 +237,56 @@ export class PaymentMethodsService {
     return pm ? this.toEntity(pm) : null;
   }
 
+  /**
+   * Get unique payment method types for a user
+   */
+  private async getUserPaymentMethodTypes(userId: string): Promise<Set<string>> {
+    const methods = await this.prisma.paymentMethod.findMany({
+      where: { userId, isActive: true },
+      select: { type: true },
+    });
+
+    return new Set(methods.map((m) => m.type));
+  }
+
+  /**
+   * Get enabled payment methods from Stripe, filtered by user's existing methods
+   */
+  async getEnabledPaymentMethods(userId: string): Promise<{
+    available: Array<{ id: string; displayName: string; active: boolean }>;
+    saved: PaymentMethodEntity[];
+  }> {
+    // Get enabled payment methods from Stripe
+    const enabled = await this.stripeService.getEnabledPaymentMethods();
+
+    // Get user's saved payment methods
+    const savedMethods = await this.findByUser(userId);
+
+    // Get unique payment method types the user already has
+    const userTypes = await this.getUserPaymentMethodTypes(userId);
+
+    // Filter enabled methods - exclude types user already has (except card)
+    const available = enabled.paymentMethodConfigurations
+      .filter((config) => {
+        // Cards can be added multiple times
+        if (config.id === 'card') {
+          return true;
+        }
+        // Filter out types the user already has
+        return !userTypes.has(config.id);
+      })
+      .map((config) => ({
+        id: config.id,
+        displayName: config.displayName,
+        active: config.active,
+      }));
+
+    return {
+      available,
+      saved: savedMethods,
+    };
+  }
+
   private toEntity(pm: any): PaymentMethodEntity {
     return {
       id: pm.id,
