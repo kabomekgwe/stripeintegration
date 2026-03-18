@@ -28,8 +28,8 @@ export class StripeService {
     const appVersion = this.configService.get<string>('npm_package_version') || '1.0.0';
 
     this.stripe = new Stripe(secretKey, {
-      // Latest stable version supported by SDK
-      apiVersion: '2025-02-24.acacia',
+      // Use preview version for FX Quotes API support
+      apiVersion: '2025-03-31.basil' as Stripe.LatestApiVersion,
       // App info for Stripe telemetry - helps with debugging
       appInfo: {
         name: APP_INFO.name,
@@ -317,8 +317,8 @@ export class StripeService {
       if (!config.active) continue;
 
       for (const [type, value] of Object.entries(config)) {
-        if (NON_PAYMENT_METHOD_KEYS.has(type)) continue;
-        if (!value || typeof value !== 'object') continue;
+   
+        
 
         const paymentMethodConfig = value as {
           available?: boolean;
@@ -426,29 +426,106 @@ export class StripeService {
     return parentMap[type];
   }
 
+  // Checkout Sessions (for Adaptive Pricing / Embedded Checkout)
   /**
-   * Get exchange rates from Stripe
-   * Returns rates relative to USD
+   * Create a Checkout Session in embedded UI mode with Adaptive Pricing enabled.
+   *
+   * NOTE: adaptive_pricing has no effect unless also enabled in the Stripe Dashboard:
+   * Settings → Payment methods → Adaptive Pricing.
+   */
+  async createCheckoutSession(params: {
+    amount: number;
+    currency: string;
+    customerId: string;
+    description?: string;
+    returnUrl: string;
+    metadata?: Record<string, string>;
+    idempotencyKey?: string;
+  }): Promise<Stripe.Checkout.Session> {
+    const idempotencyKey = params.idempotencyKey || uuidv4();
+
+    return this.stripe.checkout.sessions.create(
+      {
+        ui_mode: 'embedded',
+        mode: 'payment',
+        customer: params.customerId,
+        line_items: [
+          {
+            price_data: {
+              currency: params.currency,
+              product_data: { name: params.description || 'Payment' },
+              unit_amount: params.amount,
+            },
+            quantity: 1,
+          },
+        ],
+        // Adaptive Pricing shows localised currency to international customers.
+        // Requires the feature to be enabled in the Stripe Dashboard as well.
+        adaptive_pricing: { enabled: true },
+        return_url: params.returnUrl,
+        metadata: params.metadata,
+      },
+      { idempotencyKey },
+    );
+  }
+
+  /**
+   * Get exchange rates from Stripe FX Quotes API
+   * Returns rates relative to USD (how much 1 USD is worth in each currency)
+   *
+   * Note: Uses Stripe's FX Quotes API (preview). The base_rate is the mid-market
+   * rate, while exchange_rate includes Stripe's ~2% FX fee.
+   * We use base_rate for display purposes.
    */
   async getExchangeRates(): Promise<Record<string, number>> {
-    // Stripe Exchange Rates API returns rates for all supported currencies
-    const response = await this.stripe.exchangeRates.list();
-    
-    // Find USD base rates
-    const usdRates = response.data.find((r) => r.id === 'usd');
-    
-    if (usdRates) {
-      // Convert to our format (lowercase keys)
-      const rates: Record<string, number> = {};
-      for (const [currency, rate] of Object.entries(usdRates.rates)) {
-        rates[currency.toLowerCase()] = rate;
+    // Currencies we want rates for (supported by the app)
+    const fromCurrencies = ['eur', 'gbp', 'cad', 'aud', 'jpy', 'zar'];
+
+    try {
+      // Create an FX quote to get current rates
+      // FX Quotes is a preview API, so we need to cast the Stripe client
+      // to access the fxQuotes resource
+      const stripeWithFx = this.stripe as unknown as {
+        fxQuotes: {
+          create: (params: {
+            to_currency: string;
+            from_currencies: string[];
+            lock_duration: 'none' | 'five_minutes' | 'hour' | 'day';
+          }) => Promise<{
+            rates: Record<string, { rate_details: { base_rate: number } }>;
+          }>;
+        };
+      };
+
+      const quote = await stripeWithFx.fxQuotes.create({
+        to_currency: 'usd',
+        from_currencies: fromCurrencies,
+        lock_duration: 'none', // Don't lock the rate, just get current spot
+      });
+
+      const rates: Record<string, number> = { usd: 1.0 };
+
+      // Extract base_rate from each currency's rate details
+      for (const [currency, data] of Object.entries(quote.rates || {})) {
+        if (data.rate_details?.base_rate) {
+          // base_rate is mid-market rate (no Stripe fee)
+          // For display: 1 USD = X foreign currency, so we need the inverse
+          rates[currency.toLowerCase()] = 1 / data.rate_details.base_rate;
+        }
       }
-      // Ensure USD is 1.0 (base currency)
-      rates['usd'] = 1.0;
+
+      this.logger.log(
+        `Fetched exchange rates for ${Object.keys(rates).length} currencies from Stripe FX Quotes`,
+      );
       return rates;
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error';
+      this.logger.error(
+        `Failed to fetch FX quotes from Stripe: ${errorMessage}`,
+      );
+      // Return fallback rates if API fails
+      return { usd: 1.0 };
     }
-    
-    // Fallback: return empty if USD rates not found
-    return { usd: 1.0 };
   }
 }
