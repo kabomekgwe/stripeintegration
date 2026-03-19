@@ -240,7 +240,7 @@ export function SubscriptionsTable({ subscriptions, onCancel, onViewDetails }: S
                   </TableCell>
                   <TableCell>
                     <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
+                      <DropdownMenuTrigger>
                         <Button
                           variant="ghost"
                           size="icon"

@@ -11,34 +11,70 @@ import type { Payment, PaymentIntentResponse, CheckoutSessionResponse, CreatePay
  * - getPayment: Persist until 'Payments' tag invalidated
  * - Mutations: Invalidate 'Payments' tag
  * - Lazy queries: No cache (downloads)
+ *
+ * Idempotency:
+ * - All mutation endpoints support Idempotency-Key header
+ * - Frontend generates UUID v4 for each payment intent
+ * - Retries with same key return cached response
  */
+
+// Helper to generate UUID v4
+export const generateIdempotencyKey = (): string => {
+  return crypto.randomUUID();
+};
+
+
 export const paymentsApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
     getPayments: builder.query<{ payments: Payment[] }, void>({
       query: () => '/payments',
       providesTags: ['Payments'],
-      // Data persists until 'Payments' tag is invalidated
     }),
 
     getPayment: builder.query<{ payment: Payment | null }, string>({
       query: (id) => `/payments/${id}`,
       providesTags: (result, error, id) => [{ type: 'Payments', id }],
-      // Data persists until 'Payments' tag is invalidated
     }),
 
-    createPaymentIntent: builder.mutation<PaymentIntentResponse, CreatePaymentRequest>({
-      query: (data) => ({
+    createPaymentIntent: builder.mutation<
+      PaymentIntentResponse,
+      { request: CreatePaymentRequest; idempotencyKey: string }
+    >({
+      query: ({ request, idempotencyKey }) => ({
         url: '/payments/intent',
         method: 'POST',
-        body: data,
+        body: request,
+        headers: {
+          'Idempotency-Key': idempotencyKey,
+        },
       }),
+      async onQueryStarted({ request, idempotencyKey }, { dispatch, queryFulfilled }) {
+        try {
+          const { data } = await queryFulfilled;
+          console.log('[Idempotency] Payment intent created:', {
+            idempotencyKey,
+            paymentIntentId: data.paymentIntentId,
+          });
+        } catch (err) {
+          console.log('[Idempotency] Payment intent error:', {
+            idempotencyKey,
+            error: err,
+          });
+        }
+      },
     }),
 
-    createCheckoutSession: builder.mutation<CheckoutSessionResponse, CreatePaymentRequest>({
-      query: (data) => ({
+    createCheckoutSession: builder.mutation<
+      CheckoutSessionResponse,
+      { request: CreatePaymentRequest; idempotencyKey: string }
+    >({
+      query: ({ request, idempotencyKey }) => ({
         url: '/payments/checkout-session',
         method: 'POST',
-        body: data,
+        body: request,
+        headers: {
+          'Idempotency-Key': idempotencyKey,
+        },
       }),
     }),
 
@@ -60,12 +96,21 @@ export const paymentsApi = baseApi.injectEndpoints({
 
     createRefund: builder.mutation<
       { refund: any; remainingRefundable: number },
-      { paymentId: string; amount?: number; reason?: string; description?: string }
+      {
+        paymentId: string;
+        idempotencyKey: string;
+        amount?: number;
+        reason?: string;
+        description?: string;
+      }
     >({
-      query: ({ paymentId, ...data }) => ({
+      query: ({ paymentId, idempotencyKey, ...data }) => ({
         url: `/payments/${paymentId}/refund`,
         method: 'POST',
         body: data,
+        headers: {
+          'Idempotency-Key': idempotencyKey,
+        },
       }),
       invalidatesTags: ['Payments'],
     }),
@@ -116,3 +161,4 @@ export const {
   useLazyDownloadUsageInvoiceQuery,
   useLazyViewPaymentInvoiceQuery,
 } = paymentsApi;
+

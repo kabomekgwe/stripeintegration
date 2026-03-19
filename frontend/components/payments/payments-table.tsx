@@ -197,7 +197,7 @@ export function PaymentsTable({ payments, onRefund, onViewDetails }: PaymentsTab
                   </TableCell>
                   <TableCell>
                     <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
+                      <DropdownMenuTrigger>
                         <Button
                           variant="ghost"
                           size="icon"

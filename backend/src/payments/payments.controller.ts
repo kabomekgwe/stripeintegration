@@ -8,7 +8,7 @@ import {
   Request,
   HttpCode,
   HttpStatus,
-  Query,
+  Headers,
 } from '@nestjs/common';
 import { PaymentsService } from './payments.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -16,6 +16,7 @@ import { PaymentRateLimitGuard } from './guards/rate-limit.guard';
 import { RateLimit } from '../common/decorators/rate-limit.decorator';
 import { CreatePaymentDto } from './dto/create-payment.dto';
 import { CreateRefundDto } from './dto/create-refund.dto';
+import { IdempotencyGuard } from '../idempotency/idempotency.guard';
 
 @Controller('payments')
 @UseGuards(JwtAuthGuard)
@@ -23,11 +24,14 @@ export class PaymentsController {
   constructor(private readonly paymentsService: PaymentsService) {}
 
   @Post('intent')
-  @UseGuards(PaymentRateLimitGuard)
+  @UseGuards(PaymentRateLimitGuard, IdempotencyGuard)
   async createPaymentIntent(
     @Request() req,
     @Body() createPaymentDto: CreatePaymentDto,
   ) {
+    // Idempotency-Key is validated and required by IdempotencyGuard
+    const idempotencyKey = req.headers['idempotency-key'] as string;
+    
     const result = await this.paymentsService.createPaymentIntent({
       userId: req.user.id,
       stripeCustomerId: req.user.stripeCustomerId,
@@ -45,18 +49,21 @@ export class PaymentsController {
           country: createPaymentDto.customerDetails.address.country,
         },
       },
+      idempotencyKey, // Frontend-generated key
     });
 
     return result;
   }
 
   @Post('checkout-session')
-  @UseGuards(PaymentRateLimitGuard)
+  @UseGuards(PaymentRateLimitGuard, IdempotencyGuard)
   async createCheckoutSession(
     @Request() req,
     @Body() createPaymentDto: CreatePaymentDto,
   ) {
     const frontendUrl = req.headers.origin || 'http://localhost:3000';
+    const idempotencyKey = req.headers['idempotency-key'] as string;
+    
     return this.paymentsService.createCheckoutSession({
       userId: req.user.id,
       stripeCustomerId: req.user.stripeCustomerId,
@@ -64,6 +71,7 @@ export class PaymentsController {
       currency: createPaymentDto.currency,
       description: createPaymentDto.description,
       returnUrl: `${frontendUrl}/payments?session_id={CHECKOUT_SESSION_ID}`,
+      idempotencyKey, // Frontend-generated key
     });
   }
 
@@ -98,17 +106,23 @@ export class PaymentsController {
   // ==================== REFUNDS ====================
 
   @Post(':id/refund')
-  @RateLimit(10, 60000) // 10 requests per minute
+  @UseGuards(IdempotencyGuard)
+  @RateLimit(10, 60000)
   @HttpCode(HttpStatus.OK)
   async createRefund(
     @Request() req,
     @Param('id') id: string,
     @Body() refundDto: CreateRefundDto,
   ) {
+    const idempotencyKey = req.headers['idempotency-key'] as string;
+    
     const refund = await this.paymentsService.createRefund(
       id,
       req.user.id,
-      refundDto,
+      {
+        ...refundDto,
+        idempotencyKey, // Frontend-generated key
+      },
     );
     return { refund };
   }

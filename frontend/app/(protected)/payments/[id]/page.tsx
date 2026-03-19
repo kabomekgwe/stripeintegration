@@ -7,6 +7,7 @@ import {
   useGetPaymentQuery, 
   useCreateRefundMutation,
   useLazyDownloadPaymentInvoiceQuery,
+  generateIdempotencyKey,
 } from '@/store/api';
 
 export default function PaymentDetailPage() {
@@ -50,7 +51,11 @@ export default function PaymentDetailPage() {
         ? Math.round(parseFloat(refundAmount) * 100)
         : undefined;
 
+      const idempotencyKey = generateIdempotencyKey();
+      console.log('[Idempotency] Refund key:', idempotencyKey);
+
       await createRefund({
+        idempotencyKey,
         paymentId,
         amount: amountCents,
         reason: refundReason,

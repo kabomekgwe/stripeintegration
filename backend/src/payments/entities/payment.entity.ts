@@ -7,5 +7,6 @@ export class PaymentEntity {
   paymentMethodId?: string;
   description?: string;
   errorMessage?: string;
+  idempotencyKey?: string;
   createdAt: Date;
 }

@@ -63,6 +63,46 @@ export class RedisService {
     );
   }
 
+  // Atomic idempotency check-and-set operation to prevent race conditions
+  async checkAndSetIdempotency(
+    key: string,
+    response: any,
+    ttlHours: number = 24,
+  ): Promise<{ success: boolean; existingResponse?: any }> {
+    const redisKey = `idempotency:${key}`;
+    // Use Lua script for atomic check-and-set operation
+    const luaScript = `
+      local key = KEYS[1]
+      local value = ARGV[1]
+      local ttl = tonumber(ARGV[2])
+      
+      if redis.call('exists', key) == 1 then
+        return {0, redis.call('get', key)}
+      else
+        redis.call('setex', key, ttl, value)
+        return {1}
+      end
+    `;
+    
+    const result = await this.redis.eval(luaScript, 1, redisKey, JSON.stringify(response), ttlHours * 3600);
+    
+    if (Array.isArray(result) && result.length > 0) {
+      if (result[0] === 0) {
+        // Key already existed, return existing value
+        return { 
+          success: false, 
+          existingResponse: result[1] ? JSON.parse(result[1] as string) : undefined 
+        };
+      } else {
+        // Key was set successfully
+        return { success: true };
+      }
+    }
+    
+    // Fallback in case of unexpected result
+    return { success: false };
+  }
+
   // Session management
   async setSession(
     token: string,

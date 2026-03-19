@@ -15,7 +15,6 @@ import { ConfigService } from '@nestjs/config';
 import { PaymentEntity } from './entities/payment.entity';
 import { CreateRefundDto } from './dto/create-refund.dto';
 import { PaymentStatus, RefundStatus, Prisma } from '@prisma/client';
-import { v4 as uuidv4 } from 'uuid';
 import Stripe from 'stripe';
 
 export interface RefundResult {
@@ -37,10 +36,6 @@ interface RefundItem {
   reason: string | null;
   description: string | null;
   createdAt: Date;
-}
-
-interface RefundWithPayment extends RefundItem {
-  paymentId: string;
 }
 
 type StripeRefundReason = 'duplicate' | 'fraudulent' | 'requested_by_customer' | null;
@@ -76,14 +71,15 @@ export class PaymentsService {
       };
     };
     countryCode?: string;
-  }): Promise<{ clientSecret: string; paymentIntentId: string; taxAmount: number } > {
+    idempotencyKey: string; // Required - comes from frontend
+  }): Promise<{ clientSecret: string; paymentIntentId: string; taxAmount: number }> {
+    const { idempotencyKey } = params;
     const amount = params.amount;
 
     // Determine payment method
     let paymentMethodStripeId: string | undefined;
 
     if (params.paymentMethodId) {
-      // User specified a payment method
       const pm = await this.prisma.paymentMethod.findFirst({
         where: {
           id: params.paymentMethodId,
@@ -96,10 +92,7 @@ export class PaymentsService {
       }
       paymentMethodStripeId = pm.stripePmId;
     } else {
-      // Use default
-      const defaultPm = await this.paymentMethodsService.getDefaultForUser(
-        params.userId,
-      );
+      const defaultPm = await this.paymentMethodsService.getDefaultForUser(params.userId);
       if (!defaultPm) {
         throw new BadRequestException(
           'No default payment method found. Please add a payment method first.',
@@ -108,14 +101,27 @@ export class PaymentsService {
       paymentMethodStripeId = defaultPm.stripePmId;
     }
 
-    // Check idempotency
-    const idempotencyKey = uuidv4();
+    // Check Redis cache first (fast path)
     const cached = await this.redisService.checkIdempotency(idempotencyKey);
-    if (cached.exists) {
+    if (cached.exists && cached.response) {
       return cached.response;
     }
 
-    // Calculate tax if tax is enabled
+    // Check DB for existing payment with this idempotency key (fallback safety net)
+    const existingDbPayment = await this.prisma.paymentRecord.findUnique({
+      where: { idempotencyKey },
+    });
+    if (existingDbPayment) {
+      const response = {
+        clientSecret: '',
+        paymentIntentId: existingDbPayment.stripePaymentIntentId,
+        taxAmount: existingDbPayment.taxAmount || 0,
+      };
+      await this.redisService.setIdempotency(idempotencyKey, response);
+      return response;
+    }
+
+    // Calculate tax if enabled
     let taxAmount = 0;
     let taxRate = 0;
     let taxDisplayName: string | undefined;
@@ -157,26 +163,40 @@ export class PaymentsService {
       idempotencyKey,
     });
 
-    // Create record in database
-    const mappedStatus = this.mapStripeStatus(stripePi.status);
-    console.log('DEBUG - Stripe status:', stripePi.status);
-    console.log('DEBUG - Mapped status:', mappedStatus);
-    console.log('DEBUG - PaymentStatus enum:', PaymentStatus);
-    await this.prisma.paymentRecord.create({
-      data: {
-        userId: params.userId,
-        stripePaymentIntentId: stripePi.id,
-        amount: amount,
-        taxAmount: taxAmount || null,
-        taxRate: taxRate || null,
-        taxDisplayName,
-        currency: params.currency,
-        status: mappedStatus,
-        paymentMethodId: params.paymentMethodId,
-        description: params.description,
-        metadata: stripePi.metadata,
-      },
-    });
+    // Create record in database with unique constraint handling
+    try {
+      await this.prisma.paymentRecord.create({
+        data: {
+          userId: params.userId,
+          stripePaymentIntentId: stripePi.id,
+          amount: amount,
+          taxAmount: taxAmount || null,
+          taxRate: taxRate || null,
+          taxDisplayName,
+          currency: params.currency,
+          status: this.mapStripeStatus(stripePi.status),
+          paymentMethodId: params.paymentMethodId,
+          description: params.description,
+          metadata: stripePi.metadata,
+          idempotencyKey,
+        },
+      });
+    } catch (error) {
+      // Handle unique constraint violation
+      if (error.code === 'P2002') {
+        const existing = await this.prisma.paymentRecord.findUnique({
+          where: { idempotencyKey },
+        });
+        if (existing) {
+          return {
+            clientSecret: '',
+            paymentIntentId: existing.stripePaymentIntentId,
+            taxAmount: existing.taxAmount || 0,
+          };
+        }
+      }
+      throw error;
+    }
 
     if (!stripePi.client_secret) {
       throw new Error('Failed to create payment intent');
@@ -188,7 +208,6 @@ export class PaymentsService {
       taxAmount,
     };
 
-    // Cache for idempotency
     await this.redisService.setIdempotency(idempotencyKey, result);
 
     return result;
@@ -201,13 +220,27 @@ export class PaymentsService {
     currency: string;
     description?: string;
     returnUrl: string;
+    idempotencyKey: string; // Required - comes from frontend
   }): Promise<{ clientSecret: string; sessionId: string }> {
-    const idempotencyKey = uuidv4();
+    const { idempotencyKey } = params;
 
-    // Check idempotency
+    // Check Redis cache
     const cached = await this.redisService.checkIdempotency(idempotencyKey);
-    if (cached.exists) {
+    if (cached.exists && cached.response) {
       return cached.response;
+    }
+
+    // Check DB
+    const existingDbSession = await this.prisma.paymentRecord.findUnique({
+      where: { idempotencyKey },
+    });
+    if (existingDbSession) {
+      const result = {
+        clientSecret: '',
+        sessionId: existingDbSession.stripePaymentIntentId,
+      };
+      await this.redisService.setIdempotency(idempotencyKey, result);
+      return result;
     }
 
     const session = await this.stripeService.createCheckoutSession({
@@ -225,20 +258,30 @@ export class PaymentsService {
       idempotencyKey,
     });
 
-    // Create a pending DB record so we have a reference before the customer pays
-    await this.prisma.paymentRecord.create({
-      data: {
-        userId: params.userId,
-        // Store the session ID in stripePaymentIntentId temporarily;
-        // it will be updated to the real PaymentIntent ID on webhook confirmation.
-        stripePaymentIntentId: session.id,
-        amount: params.amount,
-        currency: params.currency,
-        status: PaymentStatus.PENDING,
-        description: params.description,
-        metadata: session.metadata as Prisma.InputJsonValue,
-      },
-    });
+    try {
+      await this.prisma.paymentRecord.create({
+        data: {
+          userId: params.userId,
+          stripePaymentIntentId: session.id,
+          amount: params.amount,
+          currency: params.currency,
+          status: PaymentStatus.PENDING,
+          description: params.description,
+          metadata: session.metadata as Prisma.InputJsonValue,
+          idempotencyKey,
+        },
+      });
+    } catch (error) {
+      if (error.code === 'P2002') {
+        const existing = await this.prisma.paymentRecord.findUnique({
+          where: { idempotencyKey },
+        });
+        if (existing) {
+          return { clientSecret: '', sessionId: existing.stripePaymentIntentId };
+        }
+      }
+      throw error;
+    }
 
     if (!session.client_secret) {
       throw new Error('Checkout Session did not return a client_secret');
@@ -249,11 +292,7 @@ export class PaymentsService {
     return result;
   }
 
-  async confirmPayment(
-    paymentIntentId: string,
-    userId: string,
-  ): Promise<PaymentEntity> {
-    // Verify ownership
+  async confirmPayment(paymentIntentId: string, userId: string): Promise<PaymentEntity> {
     const record = await this.prisma.paymentRecord.findFirst({
       where: { stripePaymentIntentId: paymentIntentId, userId },
       include: { user: true },
@@ -263,12 +302,8 @@ export class PaymentsService {
       throw new NotFoundException('Payment not found');
     }
 
-    // Retrieve from Stripe to get latest status
-    const stripePi = await this.stripeService.retrievePaymentIntent(
-      paymentIntentId,
-    );
+    const stripePi = await this.stripeService.retrievePaymentIntent(paymentIntentId);
 
-    // Update database
     const updated = await this.prisma.paymentRecord.update({
       where: { id: record.id },
       data: {
@@ -277,7 +312,6 @@ export class PaymentsService {
       },
     });
 
-    // Send email notification based on status
     const frontendUrl = this.configService.get('FRONTEND_URL') || 'http://localhost:3000';
 
     if (stripePi.status === 'succeeded') {
@@ -313,12 +347,10 @@ export class PaymentsService {
       where: { userId },
       orderBy: { createdAt: 'desc' },
     });
-
     return payments.map((p) => this.toEntity(p));
   }
 
   async findById(id: string, userId: string): Promise<PaymentEntity | null> {
-    // Try cache first
     const cacheKey = this.cacheService.paymentKey(id);
     const cached = await this.cacheService.get<PaymentEntity>(cacheKey);
     if (cached) return cached;
@@ -329,7 +361,6 @@ export class PaymentsService {
 
     if (payment) {
       const entity = this.toEntity(payment);
-      // Cache for 2 minutes (120 seconds)
       await this.cacheService.set(cacheKey, entity, { ttlSeconds: 120 });
       return entity;
     }
@@ -337,10 +368,7 @@ export class PaymentsService {
     return null;
   }
 
-  async retryPayment(
-    paymentId: string,
-    userId: string,
-  ): Promise<PaymentEntity> {
+  async retryPayment(paymentId: string, userId: string): Promise<PaymentEntity> {
     const record = await this.prisma.paymentRecord.findFirst({
       where: { id: paymentId, userId },
     });
@@ -349,28 +377,18 @@ export class PaymentsService {
       throw new NotFoundException('Payment not found');
     }
 
-    // Check retry count
-    const retryCount = await this.redisService.getRetryCount(
-      record.stripePaymentIntentId,
-    );
+    const retryCount = await this.redisService.getRetryCount(record.stripePaymentIntentId);
     if (retryCount >= 3) {
       throw new BadRequestException(
         'Maximum retry attempts reached. Please create a new payment.',
       );
     }
 
-    // Increment retry counter
-    await this.redisService.incrementRetryCounter(
-      record.stripePaymentIntentId,
-    );
+    await this.redisService.incrementRetryCounter(record.stripePaymentIntentId);
 
-    // Try to confirm again
     try {
-      await this.stripeService.confirmPaymentIntent(
-        record.stripePaymentIntentId,
-      );
+      await this.stripeService.confirmPaymentIntent(record.stripePaymentIntentId);
     } catch (error) {
-      // Update with error
       await this.prisma.paymentRecord.update({
         where: { id: record.id },
         data: {
@@ -381,7 +399,6 @@ export class PaymentsService {
       throw error;
     }
 
-    // Get updated status
     return this.confirmPayment(record.stripePaymentIntentId, userId);
   }
 
@@ -390,9 +407,10 @@ export class PaymentsService {
   async createRefund(
     paymentId: string,
     userId: string,
-    refundDto: { amount?: number; reason?: string; description?: string },
+    refundDto: { amount?: number; reason?: string; description?: string; idempotencyKey: string },
   ): Promise<RefundResult> {
-    // Get the payment record
+    const { idempotencyKey } = refundDto;
+
     const record = await this.prisma.paymentRecord.findFirst({
       where: { id: paymentId, userId },
       include: { user: true, refunds: true },
@@ -402,28 +420,48 @@ export class PaymentsService {
       throw new NotFoundException('Payment not found');
     }
 
-    // Only allow refunds on succeeded payments
     if (record.status !== 'SUCCEEDED') {
-      throw new BadRequestException(
-        'Cannot refund a payment that has not succeeded',
-      );
+      throw new BadRequestException('Cannot refund a payment that has not succeeded');
+    }
+
+    // Check Redis cache
+    const redisKey = `refund:${idempotencyKey}`;
+    const cached = await this.redisService.checkIdempotency(redisKey);
+    if (cached.exists && cached.response) {
+      return cached.response;
+    }
+
+    // Check DB for existing refund
+    const existingDbRefund = await this.prisma.refund.findUnique({
+      where: { idempotencyKey },
+    });
+    if (existingDbRefund) {
+      const remainingAmount = record.amount - record.refunds.reduce((sum, r) => sum + r.amount, 0);
+      const result = {
+        refund: {
+          id: existingDbRefund.id,
+          amount: existingDbRefund.amount,
+          currency: existingDbRefund.currency,
+          status: existingDbRefund.status,
+          createdAt: existingDbRefund.createdAt,
+        },
+        remainingRefundable: remainingAmount - existingDbRefund.amount,
+      };
+      await this.redisService.setIdempotency(redisKey, result);
+      return result;
     }
 
     // Calculate refundable amount
-    const totalRefunded = record.refunds.reduce(
-      (sum, refund) => sum + refund.amount,
-      0,
-    );
+    const totalRefunded = record.refunds.reduce((sum, refund) => sum + refund.amount, 0);
     const remainingAmount = record.amount - totalRefunded;
 
     if (remainingAmount <= 0) {
       throw new BadRequestException('Payment has already been fully refunded');
     }
 
-    // Determine refund amount
     let refundAmount = remainingAmount;
     if (refundDto.amount) {
-      refundAmount = Math.round(refundDto.amount * 100); // Convert to cents
+      refundAmount = Math.round(refundDto.amount * 100);
       if (refundAmount > remainingAmount) {
         throw new BadRequestException(
           `Refund amount exceeds remaining refundable amount of $${(remainingAmount / 100).toFixed(2)}`,
@@ -431,55 +469,74 @@ export class PaymentsService {
       }
     }
 
-    // Create refund in Stripe
     const stripeRefund = await this.stripeService.createRefund({
       paymentIntentId: record.stripePaymentIntentId,
       amount: refundAmount,
       reason: (refundDto.reason as StripeRefundReason) || undefined,
     });
 
-    // Create refund record in database
-    const refund = await this.prisma.refund.create({
-      data: {
-        paymentId: record.id,
-        stripeRefundId: stripeRefund.id,
-        amount: refundAmount,
-        currency: record.currency,
-        status: (stripeRefund.status?.toUpperCase() || 'PENDING') as RefundStatus,
-        reason: refundDto.reason,
-        description: refundDto.description,
-      },
-    });
+    try {
+      const refund = await this.prisma.refund.create({
+        data: {
+          paymentId: record.id,
+          stripeRefundId: stripeRefund.id,
+          amount: refundAmount,
+          currency: record.currency,
+          status: (stripeRefund.status?.toUpperCase() || 'PENDING') as RefundStatus,
+          reason: refundDto.reason,
+          description: refundDto.description,
+          idempotencyKey,
+        },
+      });
 
-    // Send refund confirmation email
-    await this.mailService.sendRefundConfirmation(
-      record.user.email,
-      {
-        amount: refundAmount,
-        currency: record.currency,
-        originalAmount: record.amount,
-        paymentDescription: record.description,
-        refundId: stripeRefund.id,
-      },
-      record.user.name || record.user.email,
-    );
+      await this.mailService.sendRefundConfirmation(
+        record.user.email,
+        {
+          amount: refundAmount,
+          currency: record.currency,
+          originalAmount: record.amount,
+          paymentDescription: record.description,
+          refundId: stripeRefund.id,
+        },
+        record.user.name || record.user.email,
+      );
 
-    return {
-      refund: {
-        id: refund.id,
-        amount: refundAmount,
-        currency: record.currency,
-        status: stripeRefund.status ?? 'pending',
-        createdAt: new Date(),
-      },
-      remainingRefundable: remainingAmount - refundAmount,
-    };
+      const result = {
+        refund: {
+          id: refund.id,
+          amount: refundAmount,
+          currency: record.currency,
+          status: stripeRefund.status ?? 'pending',
+          createdAt: new Date(),
+        },
+        remainingRefundable: remainingAmount - refundAmount,
+      };
+
+      await this.redisService.setIdempotency(redisKey, result);
+      return result;
+    } catch (error) {
+      if (error.code === 'P2002') {
+        const existing = await this.prisma.refund.findUnique({
+          where: { idempotencyKey },
+        });
+        if (existing) {
+          return {
+            refund: {
+              id: existing.id,
+              amount: existing.amount,
+              currency: existing.currency,
+              status: existing.status,
+              createdAt: existing.createdAt,
+            },
+            remainingRefundable: remainingAmount - existing.amount,
+          };
+        }
+      }
+      throw error;
+    }
   }
 
-  async getRefundsForPayment(
-    paymentId: string,
-    userId: string,
-  ): Promise<any[]> {
+  async getRefundsForPayment(paymentId: string, userId: string): Promise<any[]> {
     const record = await this.prisma.paymentRecord.findFirst({
       where: { id: paymentId, userId },
       include: { refunds: true },
@@ -502,14 +559,8 @@ export class PaymentsService {
 
   async getUserRefunds(userId: string): Promise<any[]> {
     const refunds = await this.prisma.refund.findMany({
-      where: {
-        payment: {
-          userId,
-        },
-      },
-      include: {
-        payment: true,
-      },
+      where: { payment: { userId } },
+      include: { payment: true },
       orderBy: { createdAt: 'desc' },
     });
 
@@ -534,7 +585,6 @@ export class PaymentsService {
       succeeded: PaymentStatus.SUCCEEDED,
       canceled: PaymentStatus.CANCELED,
     };
-
     return statusMap[stripeStatus] || PaymentStatus.PENDING;
   }
 

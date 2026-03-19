@@ -9,6 +9,7 @@ import {
   useGetPaymentMethodsQuery,
   useGetMeQuery,
   useConvertCurrencyQuery,
+  generateIdempotencyKey,
 } from '@/store/api';
 import { getStripe } from '@/lib/stripe-client';
 import { StripeProvider } from '@/components/stripe/StripeProvider';
@@ -34,7 +35,6 @@ function useDebounce<T>(value: T, delay: number): T {
 // All currencies supported by Stripe FX Quotes API (170+ currencies)
 // Source: https://docs.stripe.com/payouts/cross-border-payouts/supported-currencies
 const SUPPORTED_CURRENCIES = [
-  // Major Global Currencies
   'aed', 'afn', 'all', 'amd', 'ang', 'aoa', 'ars', 'aud', 'awg', 'azn',
   'bam', 'bbd', 'bdt', 'bgn', 'bhd', 'bif', 'bmd', 'bnd', 'bob', 'brl',
   'bsd', 'btn', 'bwp', 'byn', 'bzd', 'cad', 'cdf', 'chf', 'clp', 'cny',
@@ -45,13 +45,14 @@ const SUPPORTED_CURRENCIES = [
   'kmf', 'kpw', 'krw', 'kwd', 'kyd', 'kzt', 'lak', 'lbp', 'lkr', 'lrd',
   'lsl', 'lyd', 'mad', 'mdl', 'mga', 'mkd', 'mmk', 'mnt', 'mop', 'mru',
   'mur', 'mvr', 'mwk', 'mxn', 'myr', 'mzn', 'nad', 'ngn', 'nio', 'nok',
-  'npr', 'nzd', 'omr', 'pab', 'pen', 'pgk', 'php', 'pkr', 'pln', 'pyg',
-  'qar', 'ron', 'rsd', 'rub', 'rwf', 'sar', 'sbd', 'scr', 'sdg', 'sek',
-  'sgd', 'shp', 'sle', 'sll', 'sos', 'srd', 'ssp', 'stn', 'syp', 'szl',
-  'thb', 'tjs', 'tmt', 'tnd', 'top', 'try', 'ttd', 'twd', 'tzs', 'uah',
-  'ugx', 'usd', 'uyu', 'uzs', 'ves', 'vnd', 'vuv', 'wst', 'xaf', 'xcd',
-  'xdr', 'xof', 'xpf', 'yer', 'zar', 'zmw', 'zwl',
+  'nzd', 'omr', 'pab', 'pen', 'pgk', 'php', 'pkr', 'pln', 'pyg', 'qar',
+  'ron', 'rsd', 'rub', 'rwf', 'sar', 'sbd', 'scr', 'sdg', 'sek', 'sgd',
+  'shp', 'sll', 'sos', 'srd', 'ssp', 'stn', 'syp', 'szl', 'thb', 'tjs',
+  'tmt', 'tnd', 'top', 'try', 'ttd', 'twd', 'tzs', 'uah', 'ugx', 'usd',
+  'uyu', 'uzs', 'ves', 'vnd', 'vuv', 'wst', 'xaf', 'xcd', 'xdr', 'xof',
+  'xpf', 'yer', 'zar', 'zmw', 'zwl',
 ];
+
 import {
   PaymentElement,
   useStripe,
@@ -66,6 +67,7 @@ function PaymentForm({
   onCancel,
   localCurrency,
   convertedAmount,
+  idempotencyKey,
 }: {
   amount: number;
   description: string;
@@ -74,6 +76,7 @@ function PaymentForm({
   onCancel: () => void;
   localCurrency?: string;
   convertedAmount?: { amount: number; currency: string; formatted: string };
+  idempotencyKey: string;
 }) {
   const amountId = useId();
   const descriptionId = useId();
@@ -112,6 +115,11 @@ function PaymentForm({
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
+      {/* Idempotency key indicator */}
+      <div className="text-xs text-gray-400 mb-4">
+        Idempotency key: {idempotencyKey}
+      </div>
+
       {/* Step 1 fields — read-only summary */}
       <div>
         <label htmlFor={amountId} className="block text-sm font-medium text-gray-700 mb-2">
@@ -185,6 +193,7 @@ export default function MakePaymentPage() {
   const [description, setDescription] = useState<string>('');
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [paymentIntentId, setPaymentIntentId] = useState<string>('');
+  const [idempotencyKey, setIdempotencyKey] = useState<string>('');
 
   const { data: paymentMethodsData } = useGetPaymentMethodsQuery();
   const [createPaymentIntent, { isLoading: creating, error: createError }] = useCreatePaymentIntentMutation();
@@ -196,32 +205,27 @@ export default function MakePaymentPage() {
    * Priority: 1) Country mapping → 2) Preferred currency → 3) undefined
    */
   const getLocalCurrency = (): string | undefined => {
-    // 1. Try country-to-currency mapping (only return supported currencies)
     if (me?.country) {
       const fromCountry = COUNTRY_CURRENCY[me.country.toUpperCase()];
       if (fromCountry && SUPPORTED_CURRENCIES.includes(fromCountry)) {
         return fromCountry;
       }
     }
-    // 2. Fall back to user's preferred currency setting (only if supported)
     if (me?.preferredCurrency) {
       const preferred = me.preferredCurrency.toLowerCase();
       if (SUPPORTED_CURRENCIES.includes(preferred)) {
         return preferred;
       }
     }
-    // 3. No supported currency detected
     return undefined;
   };
 
   const localCurrency = getLocalCurrency();
   
-  // Debug: log currency detection
   useEffect(() => {
     console.log('[Currency Debug] Country:', me?.country, 'Preferred:', me?.preferredCurrency, 'Detected:', localCurrency);
   }, [me?.country, me?.preferredCurrency, localCurrency]);
   
-  // Debounce the amount for conversion API calls (300ms delay)
   const debouncedAmount = useDebounce(amount, 300);
   
   const { data: converted, isFetching: isConverting } = useConvertCurrencyQuery(
@@ -229,7 +233,6 @@ export default function MakePaymentPage() {
     { skip: !localCurrency || localCurrency === 'gbp' || debouncedAmount <= 0 },
   );
 
-  // Debug: log conversion response
   useEffect(() => {
     if (converted) {
       console.log('[Conversion Debug] Response:', converted);
@@ -242,11 +245,19 @@ export default function MakePaymentPage() {
     e.preventDefault();
     if (amount <= 0) return;
 
+    // Generate idempotency key for this payment attempt
+    const key = generateIdempotencyKey();
+    setIdempotencyKey(key);
+    console.log('[Idempotency] Generated key:', key);
+
     try {
       const result = await createPaymentIntent({
-        amount: Math.round(amount * 100),
-        currency: 'gbp',
-        description: description || 'Payment',
+        request: {
+          amount: Math.round(amount * 100),
+          currency: 'gbp',
+          description: description || 'Payment',
+        },
+        idempotencyKey: key,
       }).unwrap();
 
       setClientSecret(result.clientSecret);
@@ -259,6 +270,7 @@ export default function MakePaymentPage() {
   const handleCancel = () => {
     setClientSecret(null);
     setPaymentIntentId('');
+    setIdempotencyKey('');
   };
 
   return (
@@ -302,7 +314,13 @@ export default function MakePaymentPage() {
 
         {createError && (
           <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-6">
-            Failed to initialize payment. Please try again.
+            <p className="font-medium">Failed to create payment intent</p>
+            <p className="text-sm mt-1">
+              This could be due to a network issue or the idempotency key was rejected.
+            </p>
+            <p className="text-xs text-red-500 mt-2">
+              Idempotency key: {idempotencyKey || 'Not generated'}
+            </p>
           </div>
         )}
 
@@ -354,13 +372,12 @@ export default function MakePaymentPage() {
                     {/* User is in UK (GBP) - show info message */}
                     {localCurrency === 'gbp' && (
                       <p className="text-gray-600 text-sm">
-                        💷 Payment will be processed in British Pounds (GBP)
+                        Payment will be processed in British Pounds (GBP)
                       </p>
                     )}
                     {/* No currency detected - prompt user to set country */}
                     {!localCurrency && (
                       <div className="flex items-center gap-2 text-amber-700">
-                        <span>🌍</span>
                         <Link href="/settings" className="underline hover:text-amber-800 text-sm font-medium">
                           Set your country to see converted amounts
                         </Link>
@@ -406,13 +423,17 @@ export default function MakePaymentPage() {
                 onCancel={handleCancel}
                 localCurrency={localCurrency}
                 convertedAmount={converted?.converted}
+                idempotencyKey={idempotencyKey}
               />
             </StripeProvider>
           )}
         </div>
 
         <div className="mt-6 text-center text-sm text-gray-500">
-          <p>🔒 Your payment is secured by Stripe encryption</p>
+          <p>Your payment is secured by Stripe encryption</p>
+          <p className="text-xs text-gray-400 mt-1">
+            Retry protection enabled via idempotency key
+          </p>
         </div>
       </main>
     </div>
