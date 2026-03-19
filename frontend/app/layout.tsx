@@ -1,8 +1,10 @@
 import { Geist, Geist_Mono, Inter } from 'next/font/google';
+import { Suspense } from 'react';
 import './globals.css';
 import { ThemeProvider } from '@/components/theme-provider';
 import { StoreProvider } from '@/components/StoreProvider';
 import { ToastProvider } from '@/components/providers/toast-provider';
+import { SessionExpiredHandler } from '@/components/auth';
 import { cn } from '@/lib/utils';
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-sans' });
@@ -33,6 +35,9 @@ export default function RootLayout({
         <StoreProvider>
           <ThemeProvider>
             <ToastProvider />
+            <Suspense fallback={null}>
+              <SessionExpiredHandler />
+            </Suspense>
             {children}
           </ThemeProvider>
         </StoreProvider>

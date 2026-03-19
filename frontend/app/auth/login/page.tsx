@@ -16,6 +16,7 @@ export default function LoginPage() {
   const dispatch = useDispatch();
 
   const [login, { isLoading, error }] = useLoginMutation();
+  const hasError = !!(error && typeof error === 'object' && error !== null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -60,9 +61,9 @@ export default function LoginPage() {
           />
         </div>
 
-        {error && (
+        {hasError && (
           <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
-            {'data' in error
+            {'data' in error && typeof error.data === 'object'
               ? (error.data as { message?: string })?.message || 'Login failed'
               : 'An error occurred'}
           </div>

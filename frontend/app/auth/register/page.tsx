@@ -19,6 +19,7 @@ export default function RegisterPage() {
   const dispatch = useDispatch();
 
   const [register, { isLoading, error }] = useRegisterMutation();
+  const hasError = !!(error && typeof error === 'object' && error !== null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -100,14 +101,13 @@ export default function RegisterPage() {
           </p>
         </div>
 
-        {error && (
+        {hasError && (
           <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
-            {'data' in error
+            {'data' in error && typeof error.data === 'object'
               ? (error.data as { message?: string })?.message || 'Registration failed'
               : 'An error occurred'}
           </div>
         )}
-
         <button
           type="submit"
           disabled={isLoading}

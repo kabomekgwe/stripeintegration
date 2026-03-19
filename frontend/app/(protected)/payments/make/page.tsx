@@ -240,6 +240,7 @@ export default function MakePaymentPage() {
   }, [converted]);
 
   const hasPaymentMethods = (paymentMethodsData?.paymentMethods?.length || 0) > 0;
+  const hasCreateError = createError && typeof createError === 'object' && createError !== null;
 
   const handleContinue = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -277,53 +278,6 @@ export default function MakePaymentPage() {
     <div className="min-h-screen bg-gray-50">
       <Navbar />
       <main className="mx-auto max-w-xl px-4 py-8">
-        <div className="mb-6">
-          {clientSecret ? (
-            <button
-              type="button"
-              onClick={handleCancel}
-              className="text-blue-600 hover:underline text-sm cursor-pointer"
-            >
-              ← Back to Payment Details
-            </button>
-          ) : (
-            <Link href="/payments" className="text-blue-600 hover:underline text-sm">
-              ← Back to Payments
-            </Link>
-          )}
-        </div>
-
-        <h1 className="text-3xl font-bold mb-2">Make a Payment</h1>
-        <p className="text-gray-600 mb-8">
-          Enter the payment details below to process a one-time charge.
-        </p>
-
-        {!clientSecret && !hasPaymentMethods && (
-          <div className="bg-yellow-50 border border-yellow-200 text-yellow-800 px-4 py-3 rounded-lg mb-6">
-            <p className="text-sm">
-              You don&apos;t have any saved payment methods. Consider adding one first for faster checkout.
-            </p>
-            <Link
-              href="/payment-methods/add"
-              className="text-yellow-700 hover:underline text-sm mt-2 inline-block"
-            >
-              Add Payment Method →
-            </Link>
-          </div>
-        )}
-
-        {createError && (
-          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-6">
-            <p className="font-medium">Failed to create payment intent</p>
-            <p className="text-sm mt-1">
-              This could be due to a network issue or the idempotency key was rejected.
-            </p>
-            <p className="text-xs text-red-500 mt-2">
-              Idempotency key: {idempotencyKey || 'Not generated'}
-            </p>
-          </div>
-        )}
-
         <div className="bg-white rounded-lg shadow p-6">
           {/* Step 1: enter amount + description */}
           {!clientSecret && (
@@ -432,7 +386,6 @@ export default function MakePaymentPage() {
         <div className="mt-6 text-center text-sm text-gray-500">
           <p>Your payment is secured by Stripe encryption</p>
           <p className="text-xs text-gray-400 mt-1">
-            Retry protection enabled via idempotency key
           </p>
         </div>
       </main>

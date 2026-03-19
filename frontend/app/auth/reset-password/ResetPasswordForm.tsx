@@ -18,6 +18,7 @@ export function ResetPasswordForm() {
   const [success, setSuccess] = useState(false);
 
   const [resetPassword, { isLoading, error }] = useResetPasswordMutation();
+  const hasError = !!(error && typeof error === 'object' && error !== null);
 
   useEffect(() => {
     if (!token) {
@@ -123,12 +124,11 @@ export function ResetPasswordForm() {
             </div>
           )}
 
-          {error && (
+          {hasError && (
             <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
               Invalid or expired reset link. Please request a new one.
             </div>
           )}
-
           <button
             type="submit"
             disabled={isLoading || !token}
