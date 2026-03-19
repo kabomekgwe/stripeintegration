@@ -22,6 +22,8 @@ import {
   TrashIcon,
   WarningCircleIcon,
   CheckCircleIcon,
+  CheckIcon,
+  CursorClickIcon,
   Icon,
 } from '@phosphor-icons/react';
 
@@ -180,6 +182,23 @@ export default function PaymentMethodsPage() {
       id: config.id,
     }));
 
+  // Check if user has already added a payment method of this type
+  const isPaymentMethodAdded = (pmType: string, last4?: string) => {
+    return paymentMethods.some((method) => {
+      if (method.type !== pmType) return false;
+      // For cards, also check if a card with same last4 already exists
+      if (pmType === 'card' && last4) {
+        return method.last4 === last4;
+      }
+      return true;
+    });
+  };
+
+  // Check if user has added ANY payment method of this type
+  const hasAddedType = (pmType: string) => {
+    return paymentMethods.some((method) => method.type === pmType);
+  };
+
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
@@ -244,14 +263,32 @@ export default function PaymentMethodsPage() {
                     color: 'text-gray-600 bg-gray-50' 
                   };
                   const Icon = info.icon;
+                  const isAdded = hasAddedType(pm.type);
+                  
+                  // Determine border color based on added status
+                  const borderColor = info.color.replace('text-', 'border-').replace('bg-', 'border-');
+                  const addedClasses = isAdded 
+                    ? 'border-green-500 bg-green-50' 
+                    : 'border-gray-200 hover:border-primary hover:bg-primary/5 cursor-pointer transition-colors';
+                  
                   return (
                     <div key={pm.id} className="flex flex-col">
-                      <div
-                        className={`flex items-center gap-2 rounded-full border px-4 py-2 ${info.color.replace('text-', 'border-').replace('bg-', 'bg-opacity-50 bg-')}`}
+                      <Link
+                        href="/payment-methods/add"
+                        className={`group flex items-center gap-2 rounded-full border px-4 py-2 ${addedClasses}`}
+                        title={isAdded ? 'Already added' : 'Click to add'}
                       >
-                        <Icon className={`h-4 w-4 ${info.color.split(' ')[0]}`} weight="fill" />
+                        <Icon className={`h-4 w-4 ${isAdded ? 'text-green-600' : info.color.split(' ')[0]}`} weight="fill" />
                         <span className="text-sm font-medium">{info.name}</span>
-                      </div>
+                        {isAdded ? (
+                          <div className="ml-1 flex items-center gap-1 rounded-full bg-green-100 px-2 py-0.5">
+                            <CheckIcon className="h-3 w-3 text-green-600" weight="bold" />
+                            <span className="text-xs font-medium text-green-700">Added</span>
+                          </div>
+                        ) : (
+                          <CursorClickIcon className="ml-1 h-3 w-3 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
+                        )}
+                      </Link>
                       {info.wallets && (
                         <span className="mt-1 text-xs text-muted-foreground pl-2">
                           Supports: {info.wallets.join(', ')}

@@ -51,6 +51,15 @@ export class PaymentMethodsController {
     return result;
   }
 
+  @Post('check-duplicate')
+  @UseGuards(JwtAuthGuard)
+  async checkDuplicate(
+    @Request() req,
+    @Body('paymentMethodId') paymentMethodId: string,
+  ) {
+    return this.paymentMethodsService.checkDuplicate(req.user.id, paymentMethodId);
+  }
+
   @Post('save')
   @UseGuards(JwtAuthGuard)
   @HttpCode(HttpStatus.CREATED)

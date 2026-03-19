@@ -15,7 +15,6 @@ export const paymentMethodsApi = baseApi.injectEndpoints({
     getPaymentMethods: builder.query<{ paymentMethods: PaymentMethod[] }, void>({
       query: () => '/payment-methods',
       providesTags: ['PaymentMethods'],
-      // Data persists until 'PaymentMethods' tag is invalidated
     }),
 
     getEnabledPaymentMethods: builder.query<{
@@ -34,6 +33,17 @@ export const paymentMethodsApi = baseApi.injectEndpoints({
         url: '/payment-methods/setup-intent',
         method: 'POST',
         body: body || {},
+      }),
+    }),
+
+    checkPaymentMethodDuplicate: builder.mutation<{
+      isDuplicate: boolean;
+      existingMethod?: PaymentMethod;
+    }, string>({
+      query: (paymentMethodId) => ({
+        url: '/payment-methods/check-duplicate',
+        method: 'POST',
+        body: { paymentMethodId },
       }),
     }),
 
@@ -68,6 +78,7 @@ export const {
   useGetPaymentMethodsQuery,
   useGetEnabledPaymentMethodsQuery,
   useCreateSetupIntentMutation,
+  useCheckPaymentMethodDuplicateMutation,
   useSavePaymentMethodMutation,
   useSetDefaultPaymentMethodMutation,
   useRemovePaymentMethodMutation,

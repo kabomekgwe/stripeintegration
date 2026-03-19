@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, ConflictException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../database/prisma.service';
 import { StripeService } from '../stripe/stripe.service';
 import { PaymentMethodEntity } from './entities/payment-method.entity';
@@ -31,6 +31,101 @@ export class PaymentMethodsService {
     return { clientSecret: setupIntent.client_secret };
   }
 
+  /**
+   * Check if a payment method with the same identifying info already exists for the user
+   * - Cards: check by last4 + brand
+   * - Bank accounts: check by last4 + bankName
+   * - Other types: check by type
+   */
+  private async checkForDuplicate(
+    userId: string,
+    stripePm: StripePaymentMethod,
+  ): Promise<void> {
+    const existingMethods = await this.prisma.paymentMethod.findMany({
+      where: { userId, isActive: true },
+    });
+
+    const typeData = this.extractPaymentMethodData(stripePm);
+
+    for (const existing of existingMethods) {
+      const isDuplicate = this.isPaymentMethodDuplicate(existing, stripePm, typeData);
+
+      if (isDuplicate) {
+        const typeName = this.getPaymentMethodTypeName(stripePm.type);
+        const identifier = this.getDuplicateIdentifier(stripePm, typeData);
+        throw new ConflictException(
+          `This ${typeName}${identifier ? ` (${identifier})` : ''} has already been added to your account.`,
+        );
+      }
+    }
+  }
+
+  private isPaymentMethodDuplicate(
+    existing: any,
+    stripePm: StripePaymentMethod,
+    typeData: Record<string, any>,
+  ): boolean {
+    // Must be same type
+    if (existing.type !== stripePm.type) {
+      return false;
+    }
+
+    switch (stripePm.type) {
+      case 'card':
+        // Cards are duplicates if brand and last4 match
+        return existing.brand === typeData.brand && existing.last4 === typeData.last4;
+
+      case 'us_bank_account':
+      case 'sepa_debit':
+      case 'bacs_debit':
+      case 'au_becs_debit':
+        // Bank accounts are duplicates if bank name and last4 match
+        return existing.bankName === typeData.bankName && existing.last4 === typeData.last4;
+
+      default:
+        // For other types, just checking type is enough to consider it a duplicate
+        return true;
+    }
+  }
+
+  private getPaymentMethodTypeName(type: string): string {
+    const typeNames: Record<string, string> = {
+      card: 'card',
+      us_bank_account: 'bank account',
+      sepa_debit: 'SEPA Direct Debit',
+      bacs_debit: 'BACS Direct Debit',
+      au_becs_debit: 'AU BECS Direct Debit',
+      acss_debit: 'ACSS Direct Debit',
+      link: 'Link payment',
+      cashapp: 'Cash App',
+      paypal: 'PayPal',
+    };
+
+    return typeNames[type] || type.replace(/_/g, ' ');
+  }
+
+  private getDuplicateIdentifier(
+    stripePm: StripePaymentMethod,
+    typeData: Record<string, any>,
+  ): string | null {
+    if (!typeData.last4) {
+      return null;
+    }
+
+    switch (stripePm.type) {
+      case 'card':
+        return `${typeData.brand?.toUpperCase()} ending in ${typeData.last4}`;
+      case 'us_bank_account':
+      case 'sepa_debit':
+      case 'bacs_debit':
+      case 'au_becs_debit':
+      case 'acss_debit':
+        return `${typeData.bankName} ending in ${typeData.last4}`;
+      default:
+        return `ending in ${typeData.last4}`;
+    }
+  }
+
   async savePaymentMethod(
     userId: string,
     stripePaymentMethodId: string,
@@ -54,21 +149,24 @@ export class PaymentMethodsService {
       return this.toEntity(reactivated);
     }
 
-    // 2. Try to attach to Stripe customer
-    let stripePm: StripePaymentMethod;
+    // 2. Get payment method details from Stripe to check for duplicates
+    const stripePm = await this.stripeService.getPaymentMethod(stripePaymentMethodId);
+
+    // 3. Check for duplicate based on type-specific identifying info
+    await this.checkForDuplicate(userId, stripePm);
+
+    // 4. Try to attach to Stripe customer
     try {
-      stripePm = await this.stripeService.attachPaymentMethod(
+      await this.stripeService.attachPaymentMethod(
         stripePaymentMethodId,
         stripeCustomerId,
       );
     } catch (attachError: any) {
-      // If already attached to this customer, fetch the payment method details
+      // If already attached, that's fine - we already have the payment method details
       if (
-        attachError?.code === 'resource_already_attached' ||
-        attachError?.message?.includes('already attached')
+        attachError?.code !== 'resource_already_attached' &&
+        !attachError?.message?.includes('already attached')
       ) {
-        stripePm = await this.stripeService.getPaymentMethod(stripePaymentMethodId);
-      } else {
         throw attachError;
       }
     }
@@ -247,6 +345,33 @@ export class PaymentMethodsService {
     });
 
     return new Set(methods.map((m) => m.type));
+  }
+
+  /**
+   * Check if a payment method already exists for the user (for frontend warning)
+   * Returns the check result without throwing an error
+   */
+  async checkDuplicate(
+    userId: string,
+    paymentMethodId: string,
+  ): Promise<{ isDuplicate: boolean; existingMethod?: PaymentMethodEntity }> {
+    const stripePm = await this.stripeService.getPaymentMethod(paymentMethodId);
+    const typeData = this.extractPaymentMethodData(stripePm);
+
+    const existingMethods = await this.prisma.paymentMethod.findMany({
+      where: { userId, isActive: true },
+    });
+
+    for (const existing of existingMethods) {
+      if (this.isPaymentMethodDuplicate(existing, stripePm, typeData)) {
+        return {
+          isDuplicate: true,
+          existingMethod: this.toEntity(existing),
+        };
+      }
+    }
+
+    return { isDuplicate: false };
   }
 
   /**

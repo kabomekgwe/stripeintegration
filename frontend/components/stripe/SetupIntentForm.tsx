@@ -12,7 +12,7 @@ import { useSavePaymentMethodMutation } from '@/store/api';
 
 interface SetupIntentFormProps {
   clientSecret: string;
-  onSuccess: () => void;
+  onSuccess: (error?: { duplicate?: boolean; message?: string }) => void;
   onCancel: () => void;
 }
 
@@ -87,8 +87,17 @@ export function SetupIntentForm({
 
     if (setupIntent.status === 'succeeded') {
       // Save to our backend
-      await savePaymentMethod(setupIntent.payment_method as string);
-      onSuccess();
+      try {
+        await savePaymentMethod(setupIntent.payment_method as string).unwrap();
+        onSuccess();
+      } catch (saveError: unknown) {
+        const error = saveError as { data?: { duplicate?: boolean; error?: string }; message?: string };
+        const isDuplicate = error?.data?.duplicate === true;
+        onSuccess({ 
+          duplicate: isDuplicate, 
+          message: error?.data?.error || error?.message || 'Failed to save payment method' 
+        });
+      }
     }
 
     setIsLoading(false);
@@ -105,7 +114,7 @@ export function SetupIntentForm({
               if (!stripe || !elements) return;
 
               setIsLoading(true);
-              const { error: submitError } = await stripe.confirmSetup({
+              const { error: submitError, setupIntent } = await stripe.confirmSetup({
                 elements,
                 confirmParams: {
                   return_url: window.location.href,
@@ -119,7 +128,21 @@ export function SetupIntentForm({
                 return;
               }
 
-              onSuccess();
+              // Save to our backend
+              try {
+                if (setupIntent?.payment_method) {
+                  await savePaymentMethod(setupIntent.payment_method as string).unwrap();
+                }
+                onSuccess();
+              } catch (saveError: unknown) {
+                const error = saveError as { data?: { duplicate?: boolean; error?: string }; message?: string };
+                const isDuplicate = error?.data?.duplicate === true;
+                onSuccess({ 
+                  duplicate: isDuplicate, 
+                  message: error?.data?.error || error?.message || 'Failed to save payment method' 
+                });
+              }
+
               setIsLoading(false);
             }}
           />
