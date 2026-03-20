@@ -238,6 +238,28 @@ function mapCardDeclineToCode(declineCode: string): PaymentErrorCode {
 }
 
 /**
+ * Get HTTP status for Stripe error based on error instance type
+ */
+function getHttpStatusForStripeError(error: Stripe.errors.StripeError): HttpStatus {
+  // Card and invalid request errors are client errors (4xx)
+  if (error instanceof Stripe.errors.StripeCardError) return HttpStatus.BAD_REQUEST;
+  if (error instanceof Stripe.errors.StripeInvalidRequestError) return HttpStatus.BAD_REQUEST;
+
+  // Rate limit is 429
+  if (error instanceof Stripe.errors.StripeRateLimitError) return HttpStatus.TOO_MANY_REQUESTS;
+
+  // Connection errors are service unavailable (503)
+  if (error instanceof Stripe.errors.StripeConnectionError) return HttpStatus.SERVICE_UNAVAILABLE;
+
+  // Authentication and generic API errors are internal server errors (500)
+  if (error instanceof Stripe.errors.StripeAuthenticationError) return HttpStatus.INTERNAL_SERVER_ERROR;
+  if (error instanceof Stripe.errors.StripeAPIError) return HttpStatus.INTERNAL_SERVER_ERROR;
+
+  // Default fallback
+  return HttpStatus.INTERNAL_SERVER_ERROR;
+}
+
+/**
  * Handle Stripe error by converting to PaymentException
  * Use this at service layer boundaries
  */
@@ -248,7 +270,7 @@ export function handleStripeError(error: unknown): never {
   }
 
   const detail = stripeErrorToDetail(error);
-  const status = STRIPE_ERROR_TO_HTTP_STATUS[error.type] || HttpStatus.INTERNAL_SERVER_ERROR;
+  const status = getHttpStatusForStripeError(error);
 
   throw new PaymentException(detail, status);
 }

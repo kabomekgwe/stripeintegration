@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, BadRequestException, InternalServerErrorException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../database/prisma.service';
 import { StripeService } from '../stripe/stripe.service';
@@ -24,6 +24,30 @@ import {
   DisputeEvents,
   AccountEvents,
 } from './dto/webhook-events.dto';
+import { isRetryableStripeError } from '../stripe/stripe.errors';
+
+/**
+ * Supported Stripe webhook event types
+ * Only process these events; acknowledge but skip others
+ */
+export const SUPPORTED_EVENTS = new Set([
+  // Payment Intent events
+  'payment_intent.succeeded',
+  'payment_intent.payment_failed',
+  'payment_intent.requires_action',
+  // Setup Intent events
+  'setup_intent.succeeded',
+  'setup_intent.setup_failed',
+  // Subscription events
+  'customer.subscription.created',
+  'customer.subscription.updated',
+  'customer.subscription.deleted',
+  // Dispute events
+  'charge.dispute.created',
+  'charge.dispute.updated',
+  // Connect events
+  'account.updated',
+]);
 
 /**
  * Webhook event record from database
@@ -32,6 +56,7 @@ export interface WebhookEventRecord {
   id: string;
   stripeEventId: string;
   type: string;
+  apiVersion: string | null;
   data: unknown;
   processed: boolean;
   processedAt: Date | null;
@@ -112,11 +137,12 @@ export class WebhooksService {
       throw error;
     }
 
-    // Store event
+    // Store event with API version for version tracking
     await this.prisma.webhookEvent.create({
       data: {
         stripeEventId: event.id,
         type: event.type,
+        apiVersion: event.api_version,
         data: event.data as unknown as import('@prisma/client').Prisma.InputJsonValue,
       },
     });
@@ -144,6 +170,15 @@ export class WebhooksService {
         where: { stripeEventId: event.id },
         data: { error: errorMessage },
       });
+
+      // Return 500 for retryable errors (Stripe will retry)
+      // Return 200 for non-retryable errors (acknowledge but don't retry)
+      if (isRetryableStripeError(error)) {
+        this.logger.warn(`Retryable error for webhook ${event.id}, returning 500 for retry`);
+        throw new InternalServerErrorException('Temporary error, please retry');
+      }
+      // For non-retryable errors, we log but return success (200)
+      // This prevents Stripe from retrying permanently failed webhooks
     } finally {
       await this.redisService.releaseWebhookLock(event.id);
     }
@@ -151,6 +186,12 @@ export class WebhooksService {
 
   private async handleEvent(event: Stripe.Event): Promise<void> {
     this.logger.log(`Processing webhook: ${event.type}`);
+
+    // Skip unsupported event types (acknowledge but don't process)
+    if (!SUPPORTED_EVENTS.has(event.type)) {
+      this.logger.debug(`Skipping unsupported event type: ${event.type}`);
+      return;
+    }
 
     // Cast to our typed event for type guards
     const typedEvent = event as unknown as import('./dto/webhook-events.dto').StripeWebhookEvent;

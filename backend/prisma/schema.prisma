@@ -159,6 +159,7 @@ model WebhookEvent {
   id            String    @id @default(cuid())
   stripeEventId String    @unique
   type          String
+  apiVersion    String?   // Stripe API version that sent this event
   data          Json
   processed     Boolean   @default(false)
   processedAt   DateTime?
@@ -169,6 +170,7 @@ model WebhookEvent {
   @@index([type])
   @@index([createdAt])
   @@index([error])
+  @@index([apiVersion])
   @@map("webhook_events")
 }
 
