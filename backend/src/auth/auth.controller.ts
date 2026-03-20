@@ -52,6 +52,11 @@ export class AuthController {
   @Post('register')
   @RateLimit(5, 60000) // 5 requests per minute
   @HttpCode(HttpStatus.CREATED)
+  @ApiOperation({ summary: 'Register a new user account' })
+  @ApiBody({ type: RegisterDto })
+  @ApiResponse({ status: 201, description: 'User successfully registered, returns user data with auth cookie' })
+  @ApiResponse({ status: 400, description: 'Invalid input data or email already exists' })
+  @ApiResponse({ status: 429, description: 'Too many registration attempts' })
   async register(@Body() registerDto: RegisterDto, @Res({ passthrough: true }) res: Response) {
     const result = await this.authService.register(registerDto);
     this.setAuthCookie(res, result.accessToken);
@@ -68,6 +73,11 @@ export class AuthController {
   @Post('login')
   @RateLimit(5, 60000) // 5 requests per minute
   @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Login user and return JWT token via cookie' })
+  @ApiBody({ type: LoginDto })
+  @ApiResponse({ status: 200, description: 'User successfully logged in, returns user data with auth cookie' })
+  @ApiResponse({ status: 401, description: 'Invalid credentials' })
+  @ApiResponse({ status: 429, description: 'Too many login attempts' })
   async login(@Body() loginDto: LoginDto, @Res({ passthrough: true }) res: Response) {
     const result = await this.authService.login(loginDto);
     this.setAuthCookie(res, result.accessToken);
@@ -84,6 +94,10 @@ export class AuthController {
   @Post('logout')
   @UseGuards(JwtAuthGuard)
   @HttpCode(HttpStatus.OK)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Logout user and invalidate session' })
+  @ApiResponse({ status: 200, description: 'User successfully logged out' })
+  @ApiResponse({ status: 401, description: 'Unauthorized - invalid or missing token' })
   async logout(@Request() req, @Res({ passthrough: true }) res: Response) {
     // Clear the cookie
     this.clearAuthCookie(res);
@@ -97,6 +111,10 @@ export class AuthController {
 
   @Get('me')
   @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get current user profile' })
+  @ApiResponse({ status: 200, description: 'Returns current user profile' })
+  @ApiResponse({ status: 401, description: 'Unauthorized - invalid or missing token' })
   async getProfile(@Request() req) {
     const user = req.user;
     return {
@@ -116,6 +134,10 @@ export class AuthController {
   @Post('forgot-password')
   @RateLimit(5, 60000) // 5 requests per minute
   @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Request password reset email' })
+  @ApiBody({ type: ForgotPasswordDto })
+  @ApiResponse({ status: 200, description: 'Password reset email sent if account exists' })
+  @ApiResponse({ status: 429, description: 'Too many password reset attempts' })
   async forgotPassword(@Body() dto: ForgotPasswordDto) {
     await this.authService.requestPasswordReset(dto);
     return { message: 'If email exists, reset link sent' };
@@ -124,6 +146,11 @@ export class AuthController {
   @Post('reset-password')
   @RateLimit(5, 60000) // 5 requests per minute
   @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Reset password using token from email' })
+  @ApiBody({ type: ResetPasswordDto })
+  @ApiResponse({ status: 200, description: 'Password successfully reset' })
+  @ApiResponse({ status: 400, description: 'Invalid or expired reset token' })
+  @ApiResponse({ status: 429, description: 'Too many password reset attempts' })
   async resetPassword(@Body() dto: ResetPasswordDto) {
     await this.authService.resetPassword(dto);
     return { message: 'Password reset successful' };
@@ -131,7 +158,11 @@ export class AuthController {
 
   @Patch('preferred-currency')
   @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
   @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Update user preferred currency' })
+  @ApiResponse({ status: 200, description: 'Currency updated successfully' })
+  @ApiResponse({ status: 401, description: 'Unauthorized - invalid or missing token' })
   async updatePreferredCurrency(
     @Request() req,
     @Body('currency') currency: string,
@@ -145,19 +176,23 @@ export class AuthController {
 
   @Patch('country')
   @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
   @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Update user country and optionally currency' })
+  @ApiResponse({ status: 200, description: 'Country updated successfully' })
+  @ApiResponse({ status: 401, description: 'Unauthorized - invalid or missing token' })
   async updateCountry(
     @Request() req,
     @Body('country') country: string,
   ) {
     const user = await this.usersService.updateCountry(req.user.id, country);
-    
+
     // Auto-update currency based on country
     const suggested = this.currencyService.suggestCurrencyForUser(country);
     if (suggested.source === 'country') {
       await this.usersService.updatePreferredCurrency(req.user.id, suggested.currency);
     }
-    
+
     return {
       message: 'Country updated successfully',
       user: {
