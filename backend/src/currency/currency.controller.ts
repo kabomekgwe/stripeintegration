@@ -1,7 +1,9 @@
 import { Controller, Get, Query, Headers, Ip } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { CurrencyService } from './currency.service';
 import { ExchangeRateService } from './exchange-rate.service';
 
+@ApiTags('currency')
 @Controller('currency')
 export class CurrencyController {
   constructor(

@@ -10,6 +10,7 @@ import {
   HttpStatus,
   Headers,
 } from '@nestjs/common';
+import { ApiTags, ApiBearerAuth, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { PaymentsService } from './payments.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { PaymentRateLimitGuard } from './guards/rate-limit.guard';
@@ -18,6 +19,8 @@ import { CreatePaymentDto } from './dto/create-payment.dto';
 import { CreateRefundDto } from './dto/create-refund.dto';
 import { IdempotencyGuard } from '../idempotency/idempotency.guard';
 
+@ApiTags('payments')
+@ApiBearerAuth()
 @Controller('payments')
 @UseGuards(JwtAuthGuard)
 export class PaymentsController {

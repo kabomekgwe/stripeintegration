@@ -7,8 +7,10 @@ import {
   HttpCode,
   HttpStatus,
 } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { WebhooksService } from './webhooks.service';
 
+@ApiTags('webhooks')
 @Controller('stripe/webhook')
 export class WebhooksController {
   constructor(private readonly webhooksService: WebhooksService) {}

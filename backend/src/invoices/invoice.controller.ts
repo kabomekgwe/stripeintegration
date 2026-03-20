@@ -8,10 +8,13 @@ import {
   StreamableFile,
   Header,
 } from '@nestjs/common';
+import { ApiTags, ApiBearerAuth, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import type { Response } from 'express';
 import { InvoiceService } from './invoice.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 
+@ApiTags('invoices')
+@ApiBearerAuth()
 @Controller('invoices')
 @UseGuards(JwtAuthGuard)
 export class InvoiceController {

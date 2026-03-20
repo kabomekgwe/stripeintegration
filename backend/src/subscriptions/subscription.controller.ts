@@ -9,10 +9,13 @@ import {
   Request,
   UseGuards,
 } from '@nestjs/common';
+import { ApiTags, ApiBearerAuth, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { SubscriptionService } from './subscription.service';
 import { CreateSubscriptionDto, UpdateSubscriptionDto, CancelSubscriptionDto } from './dto/create-subscription.dto';
 
+@ApiTags('subscriptions')
+@ApiBearerAuth()
 @Controller('subscriptions')
 @UseGuards(JwtAuthGuard)
 export class SubscriptionController {

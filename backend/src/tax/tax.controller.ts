@@ -6,6 +6,7 @@ import {
   UseGuards,
   Query,
 } from '@nestjs/common';
+import { ApiTags, ApiBearerAuth, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { TaxService } from './tax.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 
@@ -35,6 +36,8 @@ class TaxIdVerificationDto {
   taxType?: 'eu_vat' | 'gb_vat' | 'au_abn' | string;
 }
 
+@ApiTags('tax')
+@ApiBearerAuth()
 @Controller('tax')
 @UseGuards(JwtAuthGuard)
 export class TaxController {

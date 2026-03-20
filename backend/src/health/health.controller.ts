@@ -1,4 +1,5 @@
 import { Controller, Get, HttpCode, HttpStatus } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { HealthService } from './health.service';
 
 /**
@@ -13,6 +14,7 @@ import { HealthService } from './health.service';
  * - Load balancers for traffic routing
  * - Monitoring systems for alerting
  */
+@ApiTags('health')
 @Controller('health')
 export class HealthController {
   constructor(private readonly healthService: HealthService) {}

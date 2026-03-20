@@ -11,6 +11,7 @@ import {
   Patch,
   Res,
 } from '@nestjs/common';
+import { ApiTags, ApiBearerAuth, ApiOperation, ApiResponse, ApiBody } from '@nestjs/swagger';
 import type { Response } from 'express';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
@@ -23,6 +24,7 @@ import { UsersService } from '../users/users.service';
 import { CurrencyService } from '../currency/currency.service';
 import { ConfigService } from '@nestjs/config';
 
+@ApiTags('auth')
 @Controller('auth')
 export class AuthController {
   constructor(

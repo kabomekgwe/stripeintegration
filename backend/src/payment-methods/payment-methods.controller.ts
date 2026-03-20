@@ -10,10 +10,13 @@ import {
   HttpCode,
   HttpStatus,
 } from '@nestjs/common';
+import { ApiTags, ApiBearerAuth, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { PaymentMethodsService } from './payment-methods.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { StripeService } from '../stripe/stripe.service';
 
+@ApiTags('payment-methods')
+@ApiBearerAuth()
 @Controller('payment-methods')
 export class PaymentMethodsController {
   constructor(

@@ -10,10 +10,13 @@ import {
   UsePipes,
   ValidationPipe,
 } from '@nestjs/common';
+import { ApiTags, ApiBearerAuth, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { UsageService } from './usage.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CreateUsageDto } from './dto/create-usage.dto';
 
+@ApiTags('usage')
+@ApiBearerAuth()
 @Controller('usage')
 @UseGuards(JwtAuthGuard)
 export class UsageController {
@@ -57,6 +60,7 @@ export class UsageController {
 }
 
 // Admin controller for running all billing
+@ApiTags('admin')
 @Controller('admin/billing')
 @UseGuards(JwtAuthGuard)
 export class AdminBillingController {

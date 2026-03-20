@@ -7,9 +7,12 @@ import {
   Request,
   UseGuards,
 } from '@nestjs/common';
+import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { UsageSubscriptionService } from './usage-subscription.service';
 
+@ApiTags('usage-subscriptions')
+@ApiBearerAuth()
 @Controller('usage-subscriptions')
 @UseGuards(JwtAuthGuard)
 export class UsageSubscriptionController {

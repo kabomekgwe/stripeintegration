@@ -8,12 +8,15 @@ import {
   UseGuards,
   Request,
 } from '@nestjs/common';
+import { ApiTags, ApiBearerAuth, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { DisputeService } from './dispute.service';
 import type { DisputeEvidence } from './dto/dispute-evidence.dto';
 
+@ApiTags('disputes')
+@ApiBearerAuth()
 @Controller('disputes')
 @UseGuards(JwtAuthGuard)
 export class DisputeController {

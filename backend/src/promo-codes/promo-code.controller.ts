@@ -9,12 +9,14 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
+import { ApiTags, ApiBearerAuth, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { PromoCodeService } from './promo-code.service';
 import type { CreatePromoCodeDto } from './dto/create-promo-code.dto';
 
+@ApiTags('promo-codes')
 @Controller('promo-codes')
 export class PromoCodeController {
   constructor(private readonly promoCodeService: PromoCodeService) {}
