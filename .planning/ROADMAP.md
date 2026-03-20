@@ -164,11 +164,13 @@
 
 **Plan Details:**
 
-### 04-01: Swagger/OpenAPI Documentation [PLANNED]
+### 04-01: Swagger/OpenAPI Documentation [COMPLETED]
 - **Requirements:** DOC-01, DOC-02, DOC-03
 - **Files:** backend/src/main.ts, backend/src/**/*.controller.ts
 - **Objective:** Set up Swagger and document all API endpoints with request/response examples
 - **Depends on:** None (parallel with 04-02)
+- **Completed:** 2026-03-20
+- **Commits:** dd00909, 34df580, c10ec48, b65c6d0
 
 ### 04-02: Frontend Testing Infrastructure [COMPLETED]
 - **Requirements:** FTEST-01
@@ -178,11 +180,13 @@
 - **Completed:** 2026-03-20
 - **Commits:** d61f839
 
-### 04-03: Component & E2E Tests [PLANNED]
+### 04-03: Component & E2E Tests [COMPLETED]
 - **Requirements:** FTEST-02, FTEST-03
 - **Files:** frontend/src/components/**/*.test.tsx, frontend/e2e/*.spec.ts
 - **Objective:** Write component tests for critical UI and E2E tests for payment/auth flows
 - **Depends on:** 04-02
+- **Completed:** 2026-03-20
+- **Commits:** a7a6bd8, ee64de7, 97953b2
 
 ---
 
@@ -215,12 +219,12 @@
 | PERF-04 | 3 | Completed |
 | PERF-05 | 3 | Completed |
 | BUG-01 | 2 | Completed |
-| DOC-01 | 4 | Pending |
-| DOC-02 | 4 | Pending |
-| DOC-03 | 4 | Pending |
+| DOC-01 | 4 | Completed |
+| DOC-02 | 4 | Completed |
+| DOC-03 | 4 | Completed |
 | FTEST-01 | 4 | Completed |
-| FTEST-02 | 4 | Pending |
-| FTEST-03 | 4 | Pending |
+| FTEST-02 | 4 | Completed |
+| FTEST-03 | 4 | Completed |
 
 ---
 
